@@ -1,29 +1,26 @@
+<template>
+  <div class="min-h-screen flex flex-row">
+    <Canvas />
+    <NodePicker v-if="nodePickerActive" />
+  </div>
+</template>
+
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router';
-import { useWasm } from './composables/useWasm'
-import { watch } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import Canvas from './components/Canvas.vue'
+import NodePicker from './components/NodePicker.vue'
 
-const { isLoaded, callWasm } = useWasm();
+const nodePickerActive = ref(false);
 
-watch(isLoaded, (loaded) => {
-  if (loaded) {
-    callWasm('greet', 'World');
+const toggleNodePicker = () => {
+  nodePickerActive.value = !nodePickerActive.value;
+};
 
-    const result = callWasm('add', 99, 2)
-    console.log(result)
-  }
+onMounted(() => {
+  document.addEventListener('toggle-node-picker', toggleNodePicker);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('toggle-node-picker', toggleNodePicker);
 });
 </script>
-
-<template>
-  <header>
-    <div class="wrapper">
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
-</template>

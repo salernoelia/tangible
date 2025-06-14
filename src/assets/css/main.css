@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  margin: 0;
+  padding: 0;
+  font-family: "Space Mono", monospace;
+  font-optical-sizing: auto;
+  line-height: 1.5;
+  font-weight: 400;
+  color: white;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
+}
+
+h4 {
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
