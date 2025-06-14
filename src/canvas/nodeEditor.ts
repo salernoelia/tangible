@@ -61,6 +61,14 @@ export class NodeEditor {
     }
 
     addNode(node: Node): void {
+        // Enforce only one output node
+        if (node.type === 'Output') {
+            this.nodes.forEach((existingNode, id) => {
+                if (existingNode.type === 'Output') {
+                    this.removeNode(id);
+                }
+            });
+        }
         this.nodes.set(node.id, node);
     }
 

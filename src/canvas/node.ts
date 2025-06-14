@@ -45,16 +45,23 @@ export class Node {
             this.getOutputHandles().length
         );
         
+        // Fixed preview dimensions (16:9 aspect ratio) - smaller and consistent
+        const previewWidth = 120;
+        const previewHeight = 68; // 120 * 9/16 = 67.5, rounded to 68
+        
+        // Base node width - more compact
+        this.width = Math.max(180, previewWidth + 40); // 20px padding on each side
+        
         // Adjust height for media nodes with previews
-        if (['Image', 'Video', 'Camera'].includes(this.type)) {
-            this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
+        if (['Image', 'Video', 'Camera', 'Output'].includes(this.type)) {
+            this.height = 30 + previewHeight + 30 + (this.hasInput ? 30 : 0); // title + preview + bottom padding + input field
+            if (this.type === 'Video') {
+                this.height += 20; // video controls (reduced)
+            }
         } else if (this.type === 'Shader') {
-            this.height = Math.max(280, 180 + maxHandles * this.handleSpacing); // Taller for preview + code
-            this.width = 280;
-        } else if (this.type === 'Output') {
-            this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
+            this.height = 30 + previewHeight + 30; // title + preview + minimal padding (no input field)
         } else {
-            this.height = Math.max(120, 80 + maxHandles * this.handleSpacing + (this.hasInput ? 30 : 0));
+            this.height = Math.max(100, 60 + maxHandles * this.handleSpacing + (this.hasInput ? 30 : 0));
         }
     }
 
@@ -74,6 +81,11 @@ export class Node {
             this.startTimeUpdate();
         }
         
+        // Start real-time updates for shader nodes
+        if (this.type === 'Shader') {
+            this.startShaderUpdate();
+        }
+        
         this.updateOutput();
     }
 
@@ -83,6 +95,18 @@ export class Node {
                 this.updateOutput();
             }
         }, 16);
+    }
+
+    private startShaderUpdate(): void {
+        setInterval(() => {
+            if (this.type === 'Shader') {
+                const textureInput = this.inputValues.get(this.handles.find(h => h.id.includes('texture-in'))?.id || '');
+                // Only update if we have a live texture input (video or camera)
+                if (textureInput && (textureInput.type === 'video' || textureInput.type === 'camera')) {
+                    this.updateOutput();
+                }
+            }
+        }, 33); // ~30fps for performance
     }
 
     getInputHandles(): NodeHandle[] {

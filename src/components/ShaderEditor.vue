@@ -30,10 +30,13 @@
             <div class="flex flex-1 overflow-hidden">
                 <div class="flex-1 p-4">
                     <textarea
+                        ref="textareaRef"
                         v-model="shaderCode"
                         class="w-full h-full bg-gray-800 text-white font-mono text-sm p-4 border border-gray-600 rounded resize-none focus:outline-none focus:border-blue-500"
                         spellcheck="false"
                         @input="onInput"
+                        @keydown="handleKeyDown"
+                        placeholder="Write your fragment shader here..."
                     ></textarea>
                 </div>
 
@@ -126,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, nextTick, useTemplateRef } from 'vue';
 
 const props = defineProps<{
     isVisible: boolean;
@@ -139,6 +142,7 @@ const emit = defineEmits<{
     apply: [code: string, params: Record<string, number>];
 }>();
 
+const textareaRef = useTemplateRef('textareaRef');
 const shaderCode = ref(props.initialCode);
 const params = ref({
     param1: 1.0,
@@ -149,32 +153,34 @@ const params = ref({
 const compileError = ref('');
 
 const validateShader = (code: string) => {
-    const requiredUniforms = ['u_texture', 'u_resolution', 'u_time', 'u_param1', 'u_param2', 'u_param3'];
-    const requiredVarying = ['vTexCoord'];
-
-    let errors: string[] = [];
-
-    requiredUniforms.forEach(uniform => {
-        if (!code.includes(`uniform`) || !code.includes(uniform)) {
-            errors.push(`Missing uniform: ${uniform}`);
-        }
-    });
-
-    requiredVarying.forEach(varying => {
-        if (!code.includes(`varying`) || !code.includes(varying)) {
-            errors.push(`Missing varying: ${varying}`);
-        }
-    });
-
+    // Basic validation - just check for gl_FragColor
     if (!code.includes('gl_FragColor')) {
-        errors.push('Missing gl_FragColor assignment');
+        return 'Missing gl_FragColor assignment';
     }
 
-    return errors.length > 0 ? errors.join(', ') : '';
+    return '';
 };
 
 const onInput = () => {
     compileError.value = validateShader(shaderCode.value);
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+    // Handle tab key for proper indentation
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const textarea = textareaRef.value;
+        if (textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            shaderCode.value = shaderCode.value.substring(0, start) + '    ' + shaderCode.value.substring(end);
+
+            nextTick(() => {
+                textarea.selectionStart = textarea.selectionEnd = start + 4;
+            });
+        }
+    }
 };
 
 const close = () => {
@@ -186,6 +192,15 @@ const apply = () => {
         emit('apply', shaderCode.value, { ...params.value });
     }
 };
+
+// Focus the textarea when the editor opens
+watch(() => props.isVisible, (visible) => {
+    if (visible) {
+        nextTick(() => {
+            textareaRef.value?.focus();
+        });
+    }
+});
 
 watch(() => props.initialCode, (newCode) => {
     shaderCode.value = newCode;
@@ -200,4 +215,8 @@ watch(() => props.initialParams, (newParams) => {
         ...newParams
     };
 }, { immediate: true });
+
+onMounted(() => {
+    onInput(); // Initial validation
+});
 </script>

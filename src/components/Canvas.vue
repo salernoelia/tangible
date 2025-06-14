@@ -13,6 +13,7 @@ import p5 from 'p5';
 import { NodeEditor } from '../canvas/NodeEditor';
 import { CanvasControls, type CanvasState, type CanvasConfig } from '../utils/ControlsManager';
 import { MediaManager } from '../utils/MediaManager';
+import type { MediaResource } from '../utils/MediaManager';
 
 const p5Container = ref<HTMLDivElement>();
 
@@ -34,6 +35,23 @@ const config: CanvasConfig = {
 let p5Instance: p5;
 let nodeEditor: NodeEditor;
 let controls: CanvasControls;
+
+// Expose method to get output texture
+const getOutputTexture = (): MediaResource | null => {
+    if (!nodeEditor) return null;
+
+    // Find the output node
+    const outputNode: any = Array.from((nodeEditor as any).nodes.values()).find((node: any) => node.type === 'Output');
+    if (outputNode && outputNode.data && outputNode.data.displayTexture) {
+        return outputNode.data.displayTexture;
+    }
+    return null;
+};
+
+// Expose the method to parent component
+defineExpose({
+    getOutputTexture
+});
 
 onMounted(() => {
     if (!p5Container.value) return;

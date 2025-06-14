@@ -128,54 +128,44 @@ export class MediaManager {
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    frameRate: { ideal: 30, max: 30 }
-                } 
-            });
-            
-            this.cameraStream = stream;
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.autoplay = true;
-            video.muted = true;
-            video.playsInline = true;
-            video.style.display = 'none';
-            
-            document.body.appendChild(video);
-            
-            return new Promise((resolve, reject) => {
-                video.onloadedmetadata = () => {
-                    video.play().then(() => {
-                        const resource: MediaResource = {
-                            id,
-                            type: 'camera',
-                            element: video,
-                            isLoaded: true,
-                            width: video.videoWidth || 640,
-                            height: video.videoHeight || 480,
-                            isPlaying: true
-                        };
-                        
-                        this.resources.set(id, resource);
-                        resolve(resource);
-                    }).catch(reject);
-                };
+            // Use p5's createCapture for better compatibility
+            if (this.p5Instance) {
+                const capture = this.p5Instance.createCapture((this.p5Instance as any).VIDEO);
+                capture.hide(); // Hide the default video element
                 
-                video.onerror = () => {
-                    document.body.removeChild(video);
-                    reject(new Error('Failed to initialize camera video element'));
-                };
-                
-                setTimeout(() => {
-                    if (!this.resources.has(id)) {
-                        document.body.removeChild(video);
-                        reject(new Error('Camera initialization timeout'));
-                    }
-                }, 5000);
-            });
+                return new Promise((resolve, reject) => {
+                    const checkLoaded = () => {
+                        if ((capture as any).loadedmetadata || capture.width > 0) {
+                            const resource: MediaResource = {
+                                id,
+                                type: 'camera',
+                                element: capture as any,
+                                isLoaded: true,
+                                width: capture.width || 640,
+                                height: capture.height || 480,
+                                isPlaying: true
+                            };
+                            
+                            this.resources.set(id, resource);
+                            resolve(resource);
+                        } else {
+                            setTimeout(checkLoaded, 100);
+                        }
+                    };
+                    
+                    // Start checking after a small delay to allow initialization
+                    setTimeout(checkLoaded, 500);
+                    
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        if (!this.resources.has(id)) {
+                            reject(new Error('Camera initialization timeout'));
+                        }
+                    }, 10000);
+                });
+            } else {
+                throw new Error('p5 instance not available');
+            }
         } catch (error) {
             throw new Error(`Camera access denied: ${error}`);
         }

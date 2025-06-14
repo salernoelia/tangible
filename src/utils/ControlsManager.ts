@@ -76,6 +76,11 @@ export class CanvasControls {
             document.dispatchEvent(new CustomEvent('toggle-node-picker'));
         }
         
+        // Fullscreen toggle with Ctrl+F
+        if ((p.key === 'f' && p.keyIsDown(p.CONTROL))) {
+            document.dispatchEvent(new CustomEvent('toggle-fullscreen-output'));
+        }
+        
         if (p.key === '+' || p.key === '=') {
             this.zoomIn();
         }

@@ -209,7 +209,7 @@ export const nodeTypeConfigs: Record<string, NodeTypeConfig> = {
         name: 'Shader',
         category: 'Effects',
         color: 'bg-red-500',
-        hasInput: true,
+        hasInput: false, // Remove input field
         handles: [
             { id: 'texture-in', type: 'target', position: 'input', dataType: 'texture' },
             { id: 'time-in', type: 'target', position: 'input', dataType: 'number' },
@@ -245,17 +245,17 @@ void main() {
         },
         updateLogic: (node: Node) => {
             const texture = node.inputValues.get(node.handles.find(h => h.id.includes('texture-in'))?.id || '');
-            const time = node.inputValues.get(node.handles.find(h => h.id.includes('time-in'))?.id || '') || 0;
-            const param1 = node.inputValues.get(node.handles.find(h => h.id.includes('param1-in'))?.id || '') || 1.0;
-            const param2 = node.inputValues.get(node.handles.find(h => h.id.includes('param2-in'))?.id || '') || 1.0;
-            const param3 = node.inputValues.get(node.handles.find(h => h.id.includes('param3-in'))?.id || '') || 1.0;
+            const time = node.inputValues.get(node.handles.find(h => h.id.includes('time-in'))?.id || '') || Date.now() / 1000.0;
+            const param1 = node.inputValues.get(node.handles.find(h => h.id.includes('param1-in'))?.id || '') || (node.data.params?.param1 || 1.0);
+            const param2 = node.inputValues.get(node.handles.find(h => h.id.includes('param2-in'))?.id || '') || (node.data.params?.param2 || 1.0);
+            const param3 = node.inputValues.get(node.handles.find(h => h.id.includes('param3-in'))?.id || '') || (node.data.params?.param3 || 1.0);
             
             if (texture && texture.element) {
                 const shaderProcessor = ShaderProcessor.getInstance();
                 const processedTexture = shaderProcessor.processTexture(
                     texture,
                     node.data.fragmentShader,
-                    { time, param1, param2, param3 },
+                    { time, param1, param2, param3, ...node.data.params },
                     `shader-${node.id}`
                 );
                 

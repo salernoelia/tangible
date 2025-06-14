@@ -25,10 +25,10 @@ export class NodeRenderer {
 
     private drawShaderControls(p: p5, node: Node, textScale: number): void {
         if (node.type === 'Shader') {
-            const buttonX = node.position.x + node.width - 70;
-            const buttonY = node.position.y + 35;
-            const buttonW = 60;
-            const buttonH = 20;
+            const buttonX = node.position.x + node.width - 50;
+            const buttonY = node.position.y + node.height - 22;
+            const buttonW = 40;
+            const buttonH = 16;
             
             p.fill(node.data.isEditorOpen ? 80 : 60);
             p.stroke(120);
@@ -46,8 +46,8 @@ export class NodeRenderer {
     private drawVideoControls(p: p5, node: Node, textScale: number): void {
         if (node.type === 'Video' && node.data.mediaResource) {
             const controlsX = node.position.x + 10;
-            const controlsY = node.position.y + 105;
-            const controlSize = 15;
+            const controlsY = node.position.y + node.height - 20;
+            const controlSize = 12;
             
             p.stroke(150);
             p.strokeWeight(1);
@@ -57,46 +57,50 @@ export class NodeRenderer {
             if (node.data.autoplay) {
                 p.stroke(255);
                 p.strokeWeight(2);
-                p.line(controlsX + 3, controlsY + 7, controlsX + 6, controlsY + 10);
-                p.line(controlsX + 6, controlsY + 10, controlsX + 12, controlsY + 4);
+                p.line(controlsX + 2, controlsY + 6, controlsX + 5, controlsY + 8);
+                p.line(controlsX + 5, controlsY + 8, controlsX + 10, controlsY + 3);
             }
             
             p.fill(255);
             p.noStroke();
             p.textAlign(p.LEFT, p.CENTER);
             p.textSize(8 * textScale);
-            p.text('Loop', controlsX + controlSize + 5, controlsY + controlSize/2);
+            p.text('Loop', controlsX + controlSize + 4, controlsY + controlSize/2);
         }
     }
 
     private drawMediaPreview(p: p5, node: Node, textScale: number): void {
         if (!['Image', 'Video', 'Camera', 'Shader', 'Output'].includes(node.type)) return;
         
-        const previewX = node.position.x + 10;
+        // Fixed 16:9 aspect ratio preview - smaller and consistent
+        const previewW = 120;
+        const previewH = 68;
+        const previewX = node.position.x + (node.width - previewW) / 2; // Center horizontally
         const previewY = node.position.y + 30;
-        const previewW = node.width - 20;
-        const previewH = node.data.isFullscreen ? p.height - 100 : 70;
 
         if (node.type === 'Image' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
+            this.drawPreviewBorder(p, previewX, previewY, previewW, previewH, [100, 150, 255]);
         } else if (node.type === 'Video' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
+            this.drawPreviewBorder(p, previewX, previewY, previewW, previewH, [255, 100, 100]);
             
             const isPlaying = node.data.mediaResource.isPlaying;
             p.fill(isPlaying ? 0 : 255, isPlaying ? 255 : 0, 0);
             p.noStroke();
-            p.ellipse(previewX + previewW - 10, previewY + 10, 8, 8);
+            p.ellipse(previewX + previewW - 8, previewY + 8, 6, 6);
         } else if (node.type === 'Camera' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
+            this.drawPreviewBorder(p, previewX, previewY, previewW, previewH, [100, 255, 100]);
             
             p.fill(255, 0, 0);
             p.noStroke();
-            p.ellipse(previewX + previewW - 10, previewY + 10, 8, 8);
+            p.ellipse(previewX + previewW - 8, previewY + 8, 6, 6);
             
             p.fill(255);
             p.textAlign(p.RIGHT, p.TOP);
             p.textSize(8 * textScale);
-            p.text('LIVE', previewX + previewW - 15, previewY + 5);
+            p.text('LIVE', previewX + previewW - 12, previewY + 4);
         } else if (node.type === 'Shader') {
             const textureInput = node.inputValues.get(node.handles.find(h => h.id.includes('texture-in'))?.id || '');
             if (textureInput && textureInput.element) {
@@ -105,51 +109,25 @@ export class NodeRenderer {
                 } else {
                     this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
                 }
-                
-                p.stroke(255, 100, 255);
-                p.strokeWeight(2);
-                p.noFill();
-                p.rect(previewX, previewY, previewW, previewH);
+                this.drawPreviewBorder(p, previewX, previewY, previewW, previewH, [255, 100, 255]);
                 
                 p.fill(255, 100, 255);
                 p.textAlign(p.LEFT, p.TOP);
-                p.textSize(8 * textScale);
-                p.text('SHADER', previewX + 5, previewY + 5);
+                p.textSize(7 * textScale);
+                p.text('SHADER', previewX + 4, previewY + 4);
             } else {
                 this.drawPlaceholder(p, previewX, previewY, previewW, previewH, 'shader input', textScale);
             }
         } else if (node.type === 'Output') {
             const textureInput = node.inputValues.get(node.handles.find(h => h.id.includes('texture-in'))?.id || '');
             if (textureInput && textureInput.element) {
-                if (node.data.isFullscreen) {
-                    const fullscreenW = p.width - 40;
-                    const fullscreenH = p.height - 80;
-                    const fullscreenX = 20;
-                    const fullscreenY = 40;
-                    
-                    p.fill(0, 200);
-                    p.noStroke();
-                    p.rect(0, 0, p.width, p.height);
-                    
-                    this.drawMediaWithAspectRatio(p, textureInput, fullscreenX, fullscreenY, fullscreenW, fullscreenH);
-                    
-                    p.fill(255);
-                    p.textAlign(p.RIGHT, p.TOP);
-                    p.textSize(16);
-                    p.text('Press Ctrl+F to exit fullscreen', p.width - 20, 20);
-                } else {
-                    this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
-                    
-                    p.stroke(255, 165, 0);
-                    p.strokeWeight(2);
-                    p.noFill();
-                    p.rect(previewX, previewY, previewW, previewH);
-                    
-                    p.fill(255, 165, 0);
-                    p.textAlign(p.LEFT, p.TOP);
-                    p.textSize(8 * textScale);
-                    p.text('OUTPUT', previewX + 5, previewY + 5);
-                }
+                this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
+                this.drawPreviewBorder(p, previewX, previewY, previewW, previewH, [255, 165, 0]);
+                
+                p.fill(255, 165, 0);
+                p.textAlign(p.LEFT, p.TOP);
+                p.textSize(7 * textScale);
+                p.text('OUTPUT', previewX + 4, previewY + 4);
             } else {
                 this.drawPlaceholder(p, previewX, previewY, previewW, previewH, 'no input', textScale);
             }
@@ -270,24 +248,20 @@ export class NodeRenderer {
 
     private drawOutputValue(p: p5, node: Node, textScale: number): void {
         if (node.outputValue !== null && node.outputValue !== undefined) {
-            p.fill(0, 150);
-            p.noStroke();
-            p.rect(node.position.x + node.width - 80, node.position.y + 12, 75, 16);
-            
             p.fill(150, 255, 150);
             p.noStroke(); 
             p.textAlign(p.RIGHT);
-            p.textSize(10 * textScale);
+            p.textSize(9 * textScale);
             p.textStyle(p.NORMAL);
             
             let displayValue = '';
             
             if (typeof node.outputValue === 'object' && node.outputValue.type) {
-                displayValue = node.outputValue.type === 'shader' ? 'Shader' : node.outputValue.type;
+                displayValue = node.outputValue.type === 'shader' ? 'Processed' : node.outputValue.type;
             } else if (typeof node.outputValue === 'number') {
                 displayValue = node.outputValue.toFixed(2);
             } else if (typeof node.outputValue === 'string') {
-                displayValue = node.outputValue.substring(0, 10);
+                displayValue = node.outputValue.substring(0, 8);
             } else if (typeof node.outputValue === 'object') {
                 displayValue = 'Media';
             } else {
@@ -336,16 +310,23 @@ export class NodeRenderer {
     }
 
     private drawPlaceholder(p: p5, x: number, y: number, w: number, h: number, type: string, textScale: number): void {
-        p.fill(60);
-        p.stroke(100);
+        p.fill(30);
+        p.stroke(80);
         p.strokeWeight(1);
         p.rect(x, y, w, h);
         
-        p.fill(200);
+        p.fill(120);
         p.noStroke();
         p.textAlign(p.CENTER, p.CENTER);
-        p.textSize(10 * textScale);
+        p.textSize(9 * textScale);
         p.text(type.toUpperCase(), x + w/2, y + h/2);
+    }
+
+    private drawPreviewBorder(p: p5, x: number, y: number, w: number, h: number, color: number[]): void {
+        p.noFill();
+        p.stroke(color[0], color[1], color[2]);
+        p.strokeWeight(2);
+        p.rect(x, y, w, h);
     }
 
     private getHandleName(handle: any): string {
@@ -380,10 +361,10 @@ export class NodeRenderer {
     isPointInShaderEditButton(node: Node, x: number, y: number): boolean {
         if (node.type !== 'Shader') return false;
         
-        const buttonX = node.position.x + node.width - 70;
-        const buttonY = node.position.y + 35;
-        const buttonW = 60;
-        const buttonH = 20;
+        const buttonX = node.position.x + node.width - 50;
+        const buttonY = node.position.y + node.height - 22;
+        const buttonW = 40;
+        const buttonH = 16;
         
         return x >= buttonX && x <= buttonX + buttonW && y >= buttonY && y <= buttonY + buttonH;
     }

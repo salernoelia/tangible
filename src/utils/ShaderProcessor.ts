@@ -6,6 +6,7 @@ export class ShaderProcessor {
     private p5Instance: p5 | null = null;
     private shaderCache = new Map<string, p5.Shader>();
     private renderBuffers = new Map<string, p5.Graphics>();
+    private lastProcessTime = new Map<string, number>();
 
     static getInstance(): ShaderProcessor {
         if (!ShaderProcessor.instance) {
@@ -28,6 +29,28 @@ export class ShaderProcessor {
             return null;
         }
 
+        // Performance optimization: limit shader processing to ~30fps for live sources
+        const now = Date.now();
+        const lastTime = this.lastProcessTime.get(outputId) || 0;
+        const isLiveSource = sourceTexture.type === 'video' || sourceTexture.type === 'camera';
+        
+        if (isLiveSource && now - lastTime < 33) { // ~30fps limit
+            // Return cached result if processing too frequently
+            const existing = this.renderBuffers.get(outputId);
+            if (existing) {
+                return {
+                    id: outputId,
+                    type: 'shader',
+                    element: existing,
+                    isLoaded: true,
+                    width: sourceTexture.width,
+                    height: sourceTexture.height
+                };
+            }
+        }
+
+        this.lastProcessTime.set(outputId, now);
+
         try {
             const shaderKey = this.hashShader(fragmentShaderCode);
             let shader = this.shaderCache.get(shaderKey);
@@ -48,12 +71,15 @@ void main() {
                 shader = this.p5Instance.createShader(vertexShader, fragmentShaderCode);
                 if (shader) {
                     this.shaderCache.set(shaderKey, shader);
+                } else {
+                    console.error('Failed to compile shader');
+                    return sourceTexture;
                 }
             }
 
             if (!shader) {
                 console.error('Failed to create shader');
-                return null;
+                return sourceTexture;
             }
 
             let buffer = this.renderBuffers.get(outputId);
@@ -61,15 +87,19 @@ void main() {
                 if (buffer) {
                     buffer.remove();
                 }
-                buffer = this.p5Instance.createGraphics(sourceTexture.width, sourceTexture.height, this.p5Instance.WEBGL);
+                // Use smaller resolution for performance
+                const renderWidth = Math.min(512, sourceTexture.width);
+                const renderHeight = Math.min(512, sourceTexture.height);
+                buffer = this.p5Instance.createGraphics(renderWidth, renderHeight, this.p5Instance.WEBGL);
                 this.renderBuffers.set(outputId, buffer);
             }
 
             buffer.shader(shader);
 
+            // Set uniforms
             shader.setUniform('u_texture', sourceTexture.element as p5.Graphics | p5.MediaElement | p5.Image);
-            shader.setUniform('u_resolution', [sourceTexture.width, sourceTexture.height]);
-            shader.setUniform('u_time', params.time || 0);
+            shader.setUniform('u_resolution', [buffer.width, buffer.height]);
+            shader.setUniform('u_time', params.time || this.p5Instance.millis() / 1000.0);
             shader.setUniform('u_param1', params.param1 || 1.0);
             shader.setUniform('u_param2', params.param2 || 1.0);
             shader.setUniform('u_param3', params.param3 || 1.0);
@@ -81,8 +111,8 @@ void main() {
                 type: 'shader',
                 element: buffer,
                 isLoaded: true,
-                width: sourceTexture.width,
-                height: sourceTexture.height
+                width: buffer.width,
+                height: buffer.height
             };
 
             return processedResource;
