@@ -1,5 +1,5 @@
 import p5 from 'p5';
-import { Node, createMathNode, createNumberNode, createStringNode } from './node';
+import { Node, createNodeFromType } from './node';
 import { Connection } from './connection';
 import { type NodeConnection, type NodeHandle, DataType } from '../types/node';
 import { CanvasControls } from '../utils/controls';
@@ -23,27 +23,39 @@ export class NodeEditor {
         lastMousePos: { x: 0, y: 0 }
     };
     private controls: CanvasControls;
+    private pendingNodeType: string | null = null;
 
     constructor(controls: CanvasControls) {
         this.controls = controls;
         this.initializeTestNodes();
+        this.setupEventListeners();
+    }
+
+    private setupEventListeners(): void {
+        document.addEventListener('node-selected', (event: any) => {
+            this.pendingNodeType = event.detail.nodeType;
+        });
     }
 
     private initializeTestNodes(): void {
-        // Create some test nodes
-        const numberNode1 = createNumberNode('num1', 100, 100);
-        numberNode1.data.value = 5;
-        numberNode1.updateOutput();
+        const numberNode1 = createNodeFromType('Number', 'num1', 100, 100);
+        if (numberNode1) {
+            numberNode1.data.value = 5;
+            numberNode1.updateOutput();
+            this.addNode(numberNode1);
+        }
         
-        const numberNode2 = createNumberNode('num2', 100, 300);
-        numberNode2.data.value = 3;
-        numberNode2.updateOutput();
+        const numberNode2 = createNodeFromType('Number', 'num2', 100, 300);
+        if (numberNode2) {
+            numberNode2.data.value = 3;
+            numberNode2.updateOutput();
+            this.addNode(numberNode2);
+        }
         
-        const mathNode = createMathNode('math1', 400, 200);
-
-        this.addNode(numberNode1);
-        this.addNode(numberNode2);
-        this.addNode(mathNode);
+        const mathNode = createNodeFromType('Add', 'math1', 400, 200);
+        if (mathNode) {
+            this.addNode(mathNode);
+        }
     }
 
     addNode(node: Node): void {
@@ -51,7 +63,6 @@ export class NodeEditor {
     }
 
     removeNode(nodeId: string): void {
-        // Remove all connections involving this node
         const connectionsToRemove: string[] = [];
         this.connections.forEach((connection, id) => {
             if (connection.connection.sourceNodeId === nodeId || 
@@ -76,7 +87,6 @@ export class NodeEditor {
         if (!sourceHandle || !targetHandle) return false;
         if (!sourceNode.canConnectTo(sourceHandle, targetHandle)) return false;
 
-        // Remove existing connection on target handle (only one input per handle)
         if (targetHandle.position === 'input') {
             this.removeConnectionsToHandle(targetNodeId, targetHandleId);
         }
@@ -93,13 +103,11 @@ export class NodeEditor {
 
         this.connections.set(connectionId, new Connection(connection));
         
-        // Update handle states
         sourceHandle.connected = true;
         sourceHandle.connectionIds.push(connectionId);
         targetHandle.connected = true;
         targetHandle.connectionIds.push(connectionId);
 
-        // Propagate value
         this.propagateValue(sourceNodeId, targetNodeId, targetHandleId);
 
         return true;
@@ -112,7 +120,6 @@ export class NodeEditor {
         if (sourceNode && targetNode) {
             targetNode.updateInputValue(targetHandleId, sourceNode.outputValue);
             
-            // Recursively propagate to connected nodes
             targetNode.getOutputHandles().forEach(outputHandle => {
                 outputHandle.connectionIds.forEach(connectionId => {
                     const connection = this.connections.get(connectionId);
@@ -156,7 +163,6 @@ export class NodeEditor {
             if (handle) {
                 handle.connectionIds = handle.connectionIds.filter(id => id !== connectionId);
                 handle.connected = handle.connectionIds.length > 0;
-                // Clear the input value
                 targetNode.updateInputValue(handle.id, null);
             }
         }
@@ -168,19 +174,27 @@ export class NodeEditor {
         if (p.key === ' ') {
             return false;
         }
+        
         const worldPos = this.controls.screenToWorld(p.mouseX, p.mouseY);
         
-        // Check for input field clicks first
+        if (this.pendingNodeType) {
+            const newNode = createNodeFromType(this.pendingNodeType, `node-${Date.now()}`, worldPos.x, worldPos.y);
+            if (newNode) {
+                this.addNode(newNode);
+            }
+            this.pendingNodeType = null;
+            document.dispatchEvent(new CustomEvent('toggle-node-picker'));
+            return true;
+        }
+        
         for (const node of this.nodes.values()) {
             if (node.hasInput && node.isPointInInputField(worldPos.x, worldPos.y)) {
-                // Stop editing all other nodes
                 this.nodes.forEach(n => n.isEditing = false);
                 node.isEditing = true;
                 return true;
             }
         }
         
-        // Check for handle clicks
         for (const node of this.nodes.values()) {
             const handle = node.getHandleAt(worldPos.x, worldPos.y);
             if (handle) {
@@ -191,7 +205,6 @@ export class NodeEditor {
             }
         }
 
-        // Check for node clicks
         for (const node of this.nodes.values()) {
             if (node.isPointInside(worldPos.x, worldPos.y)) {
                 this.nodes.forEach(n => {
@@ -208,7 +221,6 @@ export class NodeEditor {
             }
         }
 
-        // Deselect all nodes if clicking empty space
         this.nodes.forEach(n => {
             n.selected = false;
             n.isEditing = false;
@@ -274,12 +286,10 @@ export class NodeEditor {
     }
 
     handleKeyPressed(p: p5): void {
-        // Handle text input for editing nodes
         const editingNode = Array.from(this.nodes.values()).find(n => n.isEditing);
         if (editingNode) {
             editingNode.handleInput(p.key);
             
-            // Propagate value changes
             if (p.key === 'Enter') {
                 editingNode.getOutputHandles().forEach(outputHandle => {
                     outputHandle.connectionIds.forEach(connectionId => {
@@ -296,18 +306,6 @@ export class NodeEditor {
         if (p.key === 'Delete' || p.key === 'Backspace') {
             const selectedNodes = Array.from(this.nodes.values()).filter(n => n.selected);
             selectedNodes.forEach(node => this.removeNode(node.id));
-        }
-        
-        if (p.key === 'n' || p.key === 'N') {
-            const worldPos = this.controls.screenToWorld(p.mouseX, p.mouseY);
-            const newNode = createNumberNode(`node-${Date.now()}`, worldPos.x, worldPos.y);
-            this.addNode(newNode);
-        }
-        
-        if (p.key === 'm' || p.key === 'M') {
-            const worldPos = this.controls.screenToWorld(p.mouseX, p.mouseY);
-            const newNode = createMathNode(`math-${Date.now()}`, worldPos.x, worldPos.y);
-            this.addNode(newNode);
         }
     }
 

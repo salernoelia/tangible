@@ -1,5 +1,6 @@
 import p5 from 'p5';
-import { type NodeData, type NodeHandle, type NodePosition, DataType, HandleType } from '../types/node';
+import { type NodeData, type NodeHandle, type NodePosition, DataType } from '../types/node';
+import { nodeTypeConfigs, type NodeTypeConfig } from '../data/nodeTypeConfigs';
 
 export class Node {
     id: string;
@@ -9,20 +10,18 @@ export class Node {
     handles: NodeHandle[];
     selected: boolean = false;
     
-    // Visual properties
     width: number = 200;
     height: number = 100;
     cornerRadius: number = 8;
     
-    // Handle properties
     handleRadius: number = 8;
     handleSpacing: number = 25;
     
-    // Input/Output state
     inputValues: Map<string, any> = new Map();
     outputValue: any = null;
     hasInput: boolean = false;
     isEditing: boolean = false;
+    private config: NodeTypeConfig;
 
     constructor(nodeData: NodeData) {
         this.id = nodeData.id;
@@ -31,20 +30,18 @@ export class Node {
         this.data = nodeData.data;
         this.handles = nodeData.handles;
         this.hasInput = nodeData.hasInput || false;
+        this.config = nodeTypeConfigs[this.type];
         
-        // Auto-calculate height based on handles and content
         const maxHandles = Math.max(
             this.getInputHandles().length,
             this.getOutputHandles().length
         );
         this.height = Math.max(100, 60 + maxHandles * this.handleSpacing + (this.hasInput ? 30 : 0));
         
-        // Initialize input values
         this.getInputHandles().forEach(handle => {
             this.inputValues.set(handle.id, null);
         });
         
-        // Calculate initial output
         this.updateOutput();
     }
 
@@ -111,13 +108,9 @@ export class Node {
     }
 
     canConnectTo(sourceHandle: NodeHandle, targetHandle: NodeHandle): boolean {
-        // Can't connect to same node
         if (sourceHandle.id === targetHandle.id) return false;
-        
-        // Must be different positions (output to input)
         if (sourceHandle.position === targetHandle.position) return false;
         
-        // Check data type compatibility
         if (sourceHandle.dataType === DataType.Any || targetHandle.dataType === DataType.Any) {
             return true;
         }
@@ -131,47 +124,19 @@ export class Node {
     }
 
     updateOutput(): void {
-        // Override in subclasses for specific logic
-        if (this.type === 'Number') {
-            this.outputValue = this.data.value || 0;
-        } else if (this.type === 'Math') {
-            const inputs = Array.from(this.inputValues.values()).filter(v => v !== null);
-            if (inputs.length >= 2) {
-                const a = inputs[0] || 0;
-                const b = inputs[1] || 0;
-                switch (this.data.operation) {
-                    case 'add':
-                        this.outputValue = a + b;
-                        break;
-                    case 'subtract':
-                        this.outputValue = a - b;
-                        break;
-                    case 'multiply':
-                        this.outputValue = a * b;
-                        break;
-                    case 'divide':
-                        this.outputValue = b !== 0 ? a / b : 0;
-                        break;
-                    default:
-                        this.outputValue = a + b;
-                }
-            } else {
-                this.outputValue = 0;
-            }
+        if (this.config && this.config.updateLogic) {
+            this.config.updateLogic(this);
         }
     }
 
     draw(p: p5, zoom: number): void {
-        // Adjust text size based on zoom
         const textScale = Math.max(0.8, Math.min(1.2, zoom));
         
-        // Node body
         p.fill(this.selected ? 70 : 50);
         p.stroke(this.selected ? 120 : 80);
         p.strokeWeight(1);
         p.rect(this.position.x, this.position.y, this.width, this.height, this.cornerRadius);
 
-        // Node title
         p.fill(255);
         p.noStroke();
         p.textAlign(p.CENTER, p.TOP);
@@ -179,15 +144,12 @@ export class Node {
         p.textStyle(p.BOLD);
         p.text(this.type, this.position.x + this.width / 2, this.position.y + 8);
 
-        // Draw handles with labels
         this.drawHandles(p, zoom, textScale);
         
-        // Draw input field if applicable
         if (this.hasInput) {
             this.drawInputField(p, textScale);
         }
         
-        // Draw output value
         this.drawOutputValue(p, textScale);
     }
 
@@ -204,13 +166,11 @@ export class Node {
     private drawHandle(p: p5, x: number, y: number, handle: NodeHandle, zoom: number): void {
         const color = this.getDataTypeColor(handle.dataType);
         
-        // Handle background
         p.fill(handle.connected ? color.r : 40, handle.connected ? color.g : 40, handle.connected ? color.b : 40);
         p.stroke(color.r, color.g, color.b);
         p.strokeWeight(2);
         p.ellipse(x, y, this.handleRadius * 2, this.handleRadius * 2);
         
-        // Handle center dot
         if (handle.connected) {
             p.fill(255);
             p.noStroke();
@@ -219,15 +179,13 @@ export class Node {
     }
 
     private drawHandleLabel(p: p5, pos: { x: number; y: number }, handle: NodeHandle, textScale: number): void {
-        // Clean text rendering without borders/outlines
         p.fill(200);
-        p.noStroke(); // This is crucial - no stroke on text
-        p.textStyle(p.NORMAL); // Reset text style
+        p.noStroke();
+        p.textStyle(p.NORMAL);
         p.textSize(10 * textScale);
         
         if (handle.position === 'input') {
             p.textAlign(p.LEFT, p.CENTER);
-            // Show input value if connected, otherwise show handle name
             const displayText = this.inputValues.get(handle.id) !== null 
                 ? String(this.inputValues.get(handle.id)) 
                 : this.getHandleName(handle);
@@ -244,13 +202,11 @@ export class Node {
         const fieldWidth = this.width - 20;
         const fieldHeight = 25;
         
-        // Input field background
         p.fill(this.isEditing ? 80 : 60);
         p.stroke(this.isEditing ? 120 : 100);
         p.strokeWeight(1);
         p.rect(fieldX, fieldY, fieldWidth, fieldHeight, 3);
         
-        // Input field text
         p.fill(255);
         p.noStroke();
         p.textAlign(p.LEFT, p.CENTER);
@@ -260,7 +216,6 @@ export class Node {
         const displayValue = this.data.value !== undefined ? String(this.data.value) : '';
         p.text(displayValue, fieldX + 5, fieldY + fieldHeight / 2);
         
-        // Cursor if editing
         if (this.isEditing) {
             p.stroke(255);
             p.strokeWeight(1);
@@ -281,10 +236,9 @@ export class Node {
     }
 
     private getHandleName(handle: NodeHandle): string {
-        // Extract meaningful name from handle ID
         const parts = handle.id.split('-');
-        if (parts.length >= 3) {
-            return parts[2]; // e.g., 'math1-in-a' -> 'a'
+        if (parts.length >= 2) {
+            return parts[parts.length - 1];
         }
         return handle.position === 'input' ? 'in' : 'out';
     }
@@ -326,57 +280,44 @@ export class Node {
             this.data.value = currentValue.slice(0, -1);
         } else if (key === 'Enter') {
             this.isEditing = false;
-            // Convert to number if it's a number node
             if (this.type === 'Number') {
                 this.data.value = parseFloat(this.data.value) || 0;
             }
             this.updateOutput();
         } else if (key.length === 1) {
-            // Regular character input
             const currentValue = String(this.data.value || '');
             this.data.value = currentValue + key;
         }
     }
 }
 
-// Factory functions for common node types
-export function createMathNode(id: string, x: number, y: number): Node {
+export function createNodeFromType(type: string, id: string, x: number, y: number): Node | null {
+    const config = nodeTypeConfigs[type];
+    if (!config) return null;
+
+    const handles = config.handles.map(h => ({
+        id: `${id}-${h.id}`,
+        type: h.type,
+        position: h.position,
+        dataType: h.dataType,
+        connected: false,
+        connectionIds: []
+    }));
+
     return new Node({
         id,
-        type: 'Math',
+        type: config.name,
         position: { x, y },
-        data: { operation: 'add' },
-        hasInput: false,
-        handles: [
-            { id: `${id}-in-a`, type: HandleType.Target, position: 'input', dataType: DataType.Number, connected: false, connectionIds: [] },
-            { id: `${id}-in-b`, type: HandleType.Target, position: 'input', dataType: DataType.Number, connected: false, connectionIds: [] },
-            { id: `${id}-out`, type: HandleType.Source, position: 'output', dataType: DataType.Number, connected: false, connectionIds: [] }
-        ]
+        data: { ...config.defaultData },
+        hasInput: config.hasInput,
+        handles
     });
 }
 
-export function createNumberNode(id: string, x: number, y: number): Node {
-    return new Node({
-        id,
-        type: 'Number',
-        position: { x, y },
-        data: { value: 0 },
-        hasInput: true,
-        handles: [
-            { id: `${id}-out`, type: HandleType.Source, position: 'output', dataType: DataType.Number, connected: false, connectionIds: [] }
-        ]
-    });
-}
-
-export function createStringNode(id: string, x: number, y: number): Node {
-    return new Node({
-        id,
-        type: 'String',
-        position: { x, y },
-        data: { value: '' },
-        hasInput: true,
-        handles: [
-            { id: `${id}-out`, type: HandleType.Source, position: 'output', dataType: DataType.String, connected: false, connectionIds: [] }
-        ]
-    });
+export function getAvailableNodeTypes(): Array<{ name: string; category: string; color: string }> {
+    return Object.values(nodeTypeConfigs).map(config => ({
+        name: config.name,
+        category: config.category,
+        color: config.color
+    }));
 }

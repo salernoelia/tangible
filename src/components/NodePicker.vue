@@ -11,8 +11,7 @@
         <div class="flex-1 overflow-auto">
             <div
                 class="grid gap-2 h-full p-2 rounded-lg"
-                4
-                style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); max-height: 100px;"
+                style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); grid-auto-rows: 120px;"
             >
                 <div
                     v-for="(node, index) in filteredNodes"
@@ -38,9 +37,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import nodeTypes from '../assets/nodeTypes.json'
+import { getAvailableNodeTypes } from '../canvas/node'
 
 const searchTerm = ref('')
+const nodeTypes = getAvailableNodeTypes()
 
 const filteredNodes = computed(() => {
     const term = searchTerm.value.toLowerCase().trim()
@@ -53,6 +53,8 @@ const filteredNodes = computed(() => {
 })
 
 const selectNode = (node: any) => {
-    console.log('Selected:', node.name)
+    document.dispatchEvent(new CustomEvent('node-selected', {
+        detail: { nodeType: node.name }
+    }))
 }
 </script>
