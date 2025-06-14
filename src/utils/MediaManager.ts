@@ -1,13 +1,17 @@
 import p5 from 'p5';
+import { ShaderProcessor } from './ShaderProcessor';
 
 export interface MediaResource {
     id: string;
     type: 'image' | 'video' | 'camera' | 'shader';
-    element: HTMLImageElement | HTMLVideoElement | p5.MediaElement | p5.Image;
+    element: HTMLImageElement | HTMLVideoElement | p5.MediaElement | p5.Image | p5.Graphics;
     isLoaded: boolean;
     width: number;
     height: number;
     isPlaying?: boolean;
+    shader?: string;
+    params?: Record<string, any>;
+    sourceTexture?: MediaResource;
 }
 
 export class MediaManager {
@@ -16,6 +20,7 @@ export class MediaManager {
     private resources = new Map<string, MediaResource>();
     private cameraStream: MediaStream | null = null;
     private videoAutoplay = new Map<string, boolean>();
+    private shaderProcessor = ShaderProcessor.getInstance();
 
     static getInstance(): MediaManager {
         if (!MediaManager.instance) {
@@ -26,6 +31,7 @@ export class MediaManager {
 
     setP5Instance(p: p5): void {
         this.p5Instance = p;
+        this.shaderProcessor.setP5Instance(p);
     }
 
     loadImage(id: string, path: string): Promise<MediaResource> {
@@ -41,7 +47,7 @@ export class MediaManager {
                 return;
             }
 
-            const img = this.p5Instance.loadImage(path, 
+            this.p5Instance.loadImage(path, 
                 (loadedImg) => {
                     if (loadedImg && loadedImg.width > 0 && loadedImg.height > 0) {
                         const resource: MediaResource = {
@@ -95,7 +101,6 @@ export class MediaManager {
                 this.resources.set(id, resource);
                 this.videoAutoplay.set(id, autoplay);
                 
-                // Start video if autoplay is enabled
                 if (autoplay) {
                     this.startVideo(id);
                 }
@@ -108,7 +113,6 @@ export class MediaManager {
                 reject(new Error(`Failed to load video: ${path}`));
             };
 
-            // Handle video end
             video.onended(() => {
                 if (this.videoAutoplay.get(id)) {
                     video.loop();
@@ -118,7 +122,6 @@ export class MediaManager {
     }
 
     async initializeCamera(id: string = 'camera'): Promise<MediaResource> {
-        // Check if already initialized
         const existing = this.resources.get(id);
         if (existing && existing.isLoaded) {
             return existing;
@@ -139,9 +142,8 @@ export class MediaManager {
             video.autoplay = true;
             video.muted = true;
             video.playsInline = true;
-            video.style.display = 'none'; // Hide the video element
+            video.style.display = 'none';
             
-            // Add to DOM temporarily for proper initialization
             document.body.appendChild(video);
             
             return new Promise((resolve, reject) => {
@@ -167,7 +169,6 @@ export class MediaManager {
                     reject(new Error('Failed to initialize camera video element'));
                 };
                 
-                // Timeout for safety
                 setTimeout(() => {
                     if (!this.resources.has(id)) {
                         document.body.removeChild(video);
@@ -180,6 +181,39 @@ export class MediaManager {
         }
     }
 
+    processShader(
+        id: string,
+        sourceResource: MediaResource,
+        fragmentShader: string,
+        params: Record<string, any>
+    ): MediaResource | null {
+        if (!sourceResource || !sourceResource.element) return null;
+
+        const processedGraphics = this.shaderProcessor.processTexture(
+            sourceResource,
+            fragmentShader,
+            params,
+            id
+        );
+
+        if (!processedGraphics) return null;
+
+        const shaderResource: MediaResource = {
+            id,
+            type: 'shader',
+            element: processedGraphics.element,
+            isLoaded: true,
+            width: sourceResource.width,
+            height: sourceResource.height,
+            shader: fragmentShader,
+            params,
+            sourceTexture: sourceResource
+        };
+
+        this.resources.set(id, shaderResource);
+        return shaderResource;
+    }
+
     getResource(id: string): MediaResource | null {
         return this.resources.get(id) || null;
     }
@@ -190,7 +224,6 @@ export class MediaManager {
             this.cameraStream = null;
         }
         
-        // Clean up camera video elements
         this.resources.forEach((resource, id) => {
             if (resource.type === 'camera' && resource.element instanceof HTMLVideoElement) {
                 if (resource.element.parentNode) {
@@ -259,6 +292,11 @@ export class MediaManager {
                 const video = resource.element as HTMLVideoElement;
                 if (video && video.readyState >= 2 && video.videoWidth > 0) {
                     p.image(video as any, x, y, w, h);
+                }
+            } else if (resource.type === 'shader') {
+                const graphics = resource.element as p5.Graphics;
+                if (graphics) {
+                    p.image(graphics, x, y, w, h);
                 }
             }
         } catch (error) {

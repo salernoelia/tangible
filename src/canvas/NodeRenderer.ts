@@ -12,7 +12,7 @@ export class NodeRenderer {
         this.drawNodeBackground(p, node);
         this.drawNodeTitle(p, node, textScale);
         this.drawMediaPreview(p, node, textScale);
-        this.drawHandles(p, node, zoom, textScale);
+        this.drawHandles(p, node, textScale);
         
         if (node.hasInput) {
             this.drawInputField(p, node, textScale);
@@ -20,9 +20,28 @@ export class NodeRenderer {
         
         this.drawOutputValue(p, node, textScale);
         this.drawVideoControls(p, node, textScale);
+        this.drawShaderControls(p, node, textScale);
     }
 
-    // ... existing methods ...
+    private drawShaderControls(p: p5, node: Node, textScale: number): void {
+        if (node.type === 'Shader') {
+            const buttonX = node.position.x + node.width - 60;
+            const buttonY = node.position.y + 35;
+            const buttonW = 50;
+            const buttonH = 20;
+            
+            p.fill(node.data.isEditorOpen ? 80 : 60);
+            p.stroke(120);
+            p.strokeWeight(1);
+            p.rect(buttonX, buttonY, buttonW, buttonH, 3);
+            
+            p.fill(255);
+            p.noStroke();
+            p.textAlign(p.CENTER, p.CENTER);
+            p.textSize(8 * textScale);
+            p.text('EDIT', buttonX + buttonW/2, buttonY + buttonH/2);
+        }
+    }
 
     private drawVideoControls(p: p5, node: Node, textScale: number): void {
         if (node.type === 'Video' && node.data.mediaResource) {
@@ -30,7 +49,6 @@ export class NodeRenderer {
             const controlsY = node.position.y + 105;
             const controlSize = 15;
             
-            // Autoplay checkbox
             p.stroke(150);
             p.strokeWeight(1);
             p.fill(node.data.autoplay ? 100 : 40);
@@ -57,14 +75,13 @@ export class NodeRenderer {
         const previewX = node.position.x + 10;
         const previewY = node.position.y + 30;
         const previewW = node.width - 20;
-        const previewH = 70;
+        const previewH = node.data.isFullscreen ? p.height - 100 : 70;
 
         if (node.type === 'Image' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
         } else if (node.type === 'Video' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
             
-            // Play/pause indicator
             const isPlaying = node.data.mediaResource.isPlaying;
             p.fill(isPlaying ? 0 : 255, isPlaying ? 255 : 0, 0);
             p.noStroke();
@@ -72,7 +89,6 @@ export class NodeRenderer {
         } else if (node.type === 'Camera' && node.data.mediaResource) {
             this.drawMediaWithAspectRatio(p, node.data.mediaResource, previewX, previewY, previewW, previewH);
             
-            // Live indicator
             p.fill(255, 0, 0);
             p.noStroke();
             p.ellipse(previewX + previewW - 10, previewY + 10, 8, 8);
@@ -84,15 +100,12 @@ export class NodeRenderer {
         } else if (node.type === 'Shader') {
             const textureInput = node.inputValues.get(node.handles.find(h => h.id.includes('texture-in'))?.id || '');
             if (textureInput && textureInput.element) {
-                // Draw the input texture (shader processing would happen in a real implementation)
-                this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
+                if (node.outputValue && node.outputValue.element) {
+                    this.drawMediaWithAspectRatio(p, node.outputValue, previewX, previewY, previewW, previewH);
+                } else {
+                    this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
+                }
                 
-                // Shader effect overlay (visual indication)
-                p.fill(255, 100, 255, 30);
-                p.noStroke();
-                p.rect(previewX, previewY, previewW, previewH);
-                
-                // Shader indicator
                 p.stroke(255, 100, 255);
                 p.strokeWeight(2);
                 p.noFill();
@@ -108,30 +121,35 @@ export class NodeRenderer {
         } else if (node.type === 'Output') {
             const textureInput = node.inputValues.get(node.handles.find(h => h.id.includes('texture-in'))?.id || '');
             if (textureInput && textureInput.element) {
-                // Check if it's a shader output
-                if (textureInput.type === 'shader') {
-                    // Draw the source texture with shader indication
-                    this.drawMediaWithAspectRatio(p, textureInput.sourceTexture || textureInput, previewX, previewY, previewW, previewH);
+                if (node.data.isFullscreen) {
+                    const fullscreenW = p.width - 40;
+                    const fullscreenH = p.height - 80;
+                    const fullscreenX = 20;
+                    const fullscreenY = 40;
                     
-                    // Shader effect overlay
-                    p.fill(255, 100, 255, 20);
+                    p.fill(0, 200);
                     p.noStroke();
-                    p.rect(previewX, previewY, previewW, previewH);
+                    p.rect(0, 0, p.width, p.height);
+                    
+                    this.drawMediaWithAspectRatio(p, textureInput, fullscreenX, fullscreenY, fullscreenW, fullscreenH);
+                    
+                    p.fill(255);
+                    p.textAlign(p.RIGHT, p.TOP);
+                    p.textSize(16);
+                    p.text('Press Ctrl+F to exit fullscreen', p.width - 20, 20);
                 } else {
-                    // Regular texture
                     this.drawMediaWithAspectRatio(p, textureInput, previewX, previewY, previewW, previewH);
+                    
+                    p.stroke(255, 165, 0);
+                    p.strokeWeight(2);
+                    p.noFill();
+                    p.rect(previewX, previewY, previewW, previewH);
+                    
+                    p.fill(255, 165, 0);
+                    p.textAlign(p.LEFT, p.TOP);
+                    p.textSize(8 * textScale);
+                    p.text('OUTPUT', previewX + 5, previewY + 5);
                 }
-                
-                // Output indicator
-                p.stroke(255, 165, 0);
-                p.strokeWeight(2);
-                p.noFill();
-                p.rect(previewX, previewY, previewW, previewH);
-                
-                p.fill(255, 165, 0);
-                p.textAlign(p.LEFT, p.TOP);
-                p.textSize(8 * textScale);
-                p.text('OUTPUT', previewX + 5, previewY + 5);
             } else {
                 this.drawPlaceholder(p, previewX, previewY, previewW, previewH, 'no input', textScale);
             }
@@ -140,7 +158,6 @@ export class NodeRenderer {
         }
     }
 
-    // ... rest of existing methods remain the same ...
     private drawNodeBackground(p: p5, node: Node): void {
         p.fill(node.selected ? 70 : 50);
         p.stroke(node.selected ? 120 : 80);
@@ -157,7 +174,7 @@ export class NodeRenderer {
         p.text(node.type, node.position.x + node.width / 2, node.position.y + 8);
     }
 
-    private drawHandles(p: p5, node: Node, zoom: number, textScale: number): void {
+    private drawHandles(p: p5, node: Node, textScale: number): void {
         node.handles.forEach(handle => {
             const pos = node.getHandlePosition(handle.id);
             if (pos) {
@@ -226,47 +243,7 @@ export class NodeRenderer {
     }
 
     private drawInputField(p: p5, node: Node, textScale: number): void {
-        if (node.type === 'Shader') {
-            this.drawShaderField(p, node, textScale);
-        } else {
-            this.drawStandardInputField(p, node, textScale);
-        }
-    }
-
-    private drawShaderField(p: p5, node: Node, textScale: number): void {
-        const fieldX = node.position.x + 10;
-        const fieldY = node.position.y + 135; // Below preview and controls
-        const fieldWidth = node.width - 20;
-        const fieldHeight = node.height - 175;
-        
-        p.fill(node.isEditing ? 80 : 60);
-        p.stroke(node.isEditing ? 120 : 100);
-        p.strokeWeight(1);
-        p.rect(fieldX, fieldY, fieldWidth, fieldHeight, 3);
-        
-        p.fill(255);
-        p.noStroke();
-        p.textAlign(p.LEFT, p.TOP);
-        p.textSize(8 * textScale);
-        p.textStyle(p.NORMAL);
-        
-        const shaderCode = node.data.fragmentShader || '';
-        const lines = shaderCode.split('\n');
-        const maxLines = Math.floor(fieldHeight / 12) - 1;
-        
-        for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
-            const line = lines[i];
-            const maxChars = Math.floor(fieldWidth / 6);
-            const displayLine = line.length > maxChars ? line.substring(0, maxChars - 3) + '...' : line;
-            p.text(displayLine, fieldX + 5, fieldY + 5 + i * 12);
-        }
-        
-        if (node.isEditing) {
-            p.stroke(255);
-            p.strokeWeight(1);
-            const cursorY = fieldY + 5 + Math.min(lines.length, maxLines) * 12;
-            p.line(fieldX + 5, cursorY, fieldX + 15, cursorY);
-        }
+        this.drawStandardInputField(p, node, textScale);
     }
 
     private drawStandardInputField(p: p5, node: Node, textScale: number): void {
@@ -404,5 +381,16 @@ export class NodeRenderer {
             default:
                 return { r: 100, g: 100, b: 100 };
         }
+    }
+
+    isPointInShaderEditButton(node: Node, x: number, y: number): boolean {
+        if (node.type !== 'Shader') return false;
+        
+        const buttonX = node.position.x + node.width - 60;
+        const buttonY = node.position.y + 35;
+        const buttonW = 50;
+        const buttonH = 20;
+        
+        return x >= buttonX && x <= buttonX + buttonW && y >= buttonY && y <= buttonY + buttonH;
     }
 }

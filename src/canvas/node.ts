@@ -1,5 +1,5 @@
 import p5 from 'p5';
-import { type NodeData, type NodeHandle, type NodePosition, type DataType } from '../types/node';
+import { type NodeData, type NodeHandle, type NodePosition } from '../types/node';
 import { nodeTypeConfigs, type NodeTypeConfig } from '../data/NodeTypeConfigs';
 import { NodeRenderer } from './NodeRenderer';
 

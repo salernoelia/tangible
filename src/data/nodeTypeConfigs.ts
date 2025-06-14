@@ -1,6 +1,7 @@
 import type { DataType, HandleType } from '../types/node';
 import type { Node } from '../canvas/Node';
 import { MediaManager } from '../utils/MediaManager';
+import { ShaderProcessor } from '../utils/ShaderProcessor';
 
 export interface NodeTypeConfig {
     name: string;
@@ -185,7 +186,6 @@ export const nodeTypeConfigs: Record<string, NodeTypeConfig> = {
             
             node.data.isLoading = true;
             
-            // Use a proper promise-based approach
             try {
                 const mediaManager = MediaManager.getInstance();
                 const resource = await mediaManager.initializeCamera(`camera-${node.id}`);
@@ -204,8 +204,8 @@ export const nodeTypeConfigs: Record<string, NodeTypeConfig> = {
         updateLogic: (node: Node) => {
             node.outputValue = node.data.mediaResource;
         }
-        },
-        'Shader': {
+    },
+    'Shader': {
         name: 'Shader',
         category: 'Effects',
         color: 'bg-red-500',
@@ -220,38 +220,26 @@ export const nodeTypeConfigs: Record<string, NodeTypeConfig> = {
         ],
         defaultData: { 
             fragmentShader: `precision mediump float;
-    uniform sampler2D u_texture;
-    uniform vec2 u_resolution;
-    uniform float u_time;
-    uniform float u_param1;
-    uniform float u_param2;
-    uniform float u_param3;
-    varying vec2 vTexCoord;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_param1;
+uniform float u_param2;
+uniform float u_param3;
+varying vec2 vTexCoord;
 
-    void main() {
-        vec2 uv = vTexCoord;
-        
-        // Create distortion based on parameters
-        float distortionX = sin(uv.y * 10.0 * u_param1 + u_time) * 0.1 * u_param2;
-        float distortionY = cos(uv.x * 10.0 * u_param1 + u_time) * 0.1 * u_param3;
-        
-        // Apply the distortion to the texture coordinates
-        vec2 distortedUV = vec2(uv.x + distortionX, uv.y + distortionY);
-        vec4 color = texture2D(u_texture, distortedUV);
-        
-        // Color manipulation
-        float colorShift = sin(u_time * 0.5) * 0.5 + 0.5;
-        color.r = mix(color.r, color.g, u_param1 * 0.5);
-        color.g = mix(color.g, color.b, u_param2 * 0.5);
-        color.b = mix(color.b, colorShift, u_param3 * 0.3);
-        
-        // Add some pulsing vignette
-        float vignetteAmount = 0.5 + sin(u_time) * 0.2;
-        float vignette = length(uv - 0.5) * vignetteAmount;
-        color.rgb = mix(color.rgb, color.rgb * (1.0 - vignette), 0.8);
-        
-        gl_FragColor = color;
-    }`,
+void main() {
+    vec2 uv = vTexCoord;
+    vec4 color = texture2D(u_texture, uv);
+    
+    float wave = sin(u_time * u_param1 * 2.0) * 0.5 + 0.5;
+    
+    color.r = mix(color.r, 1.0 - color.r, wave * u_param1);
+    color.g = color.g * u_param2;
+    color.b = color.b * u_param3;
+    
+    gl_FragColor = color;
+}`,
             processedTexture: null,
             params: { param1: 1.0, param2: 1.0, param3: 1.0 }
         },
@@ -263,20 +251,16 @@ export const nodeTypeConfigs: Record<string, NodeTypeConfig> = {
             const param3 = node.inputValues.get(node.handles.find(h => h.id.includes('param3-in'))?.id || '') || 1.0;
             
             if (texture && texture.element) {
-                // Create a processed texture resource
-                node.data.processedTexture = {
-                    id: `shader-${node.id}`,
-                    type: 'shader',
-                    element: texture.element, // Use the original element for now
-                    isLoaded: true,
-                    width: texture.width,
-                    height: texture.height,
-                    shader: node.data.fragmentShader,
-                    params: { param1, param2, param3, time },
-                    sourceTexture: texture
-                };
+                const shaderProcessor = ShaderProcessor.getInstance();
+                const processedTexture = shaderProcessor.processTexture(
+                    texture,
+                    node.data.fragmentShader,
+                    { time, param1, param2, param3 },
+                    `shader-${node.id}`
+                );
                 
-                node.outputValue = node.data.processedTexture;
+                node.data.processedTexture = processedTexture;
+                node.outputValue = processedTexture || texture;
             } else {
                 node.outputValue = null;
             }
