@@ -25,9 +25,9 @@ export class NodeRenderer {
 
     private drawShaderControls(p: p5, node: Node, textScale: number): void {
         if (node.type === 'Shader') {
-            const buttonX = node.position.x + node.width - 60;
+            const buttonX = node.position.x + node.width - 70;
             const buttonY = node.position.y + 35;
-            const buttonW = 50;
+            const buttonW = 60;
             const buttonH = 20;
             
             p.fill(node.data.isEditorOpen ? 80 : 60);
@@ -200,9 +200,6 @@ export class NodeRenderer {
     }
 
     private drawHandleLabel(p: p5, pos: { x: number; y: number }, handle: any, textScale: number, node: Node): void {
-        p.fill(0, 150);
-        p.noStroke();
-        
         if (handle.position === 'input') {
             const inputValue = node.inputValues.get(handle.id);
             let displayText = this.getHandleName(handle);
@@ -221,20 +218,17 @@ export class NodeRenderer {
                 }
             }
             
-            const textWidth = displayText.length * 6 * textScale;
-            p.rect(pos.x + 18, pos.y - 8, textWidth, 16);
-            
             p.fill(255);
+            p.noStroke();
             p.textAlign(p.LEFT, p.CENTER);
             p.textSize(10 * textScale);
             p.textStyle(p.NORMAL);
             p.text(displayText, pos.x + 20, pos.y);
         } else {
             const displayText = this.getHandleName(handle);
-            const textWidth = displayText.length * 6 * textScale;
-            p.rect(pos.x - 18 - textWidth, pos.y - 8, textWidth, 16);
             
             p.fill(255);
+            p.noStroke();
             p.textAlign(p.RIGHT, p.CENTER);
             p.textSize(10 * textScale);
             p.textStyle(p.NORMAL);
@@ -386,9 +380,9 @@ export class NodeRenderer {
     isPointInShaderEditButton(node: Node, x: number, y: number): boolean {
         if (node.type !== 'Shader') return false;
         
-        const buttonX = node.position.x + node.width - 60;
+        const buttonX = node.position.x + node.width - 70;
         const buttonY = node.position.y + 35;
-        const buttonW = 50;
+        const buttonW = 60;
         const buttonH = 20;
         
         return x >= buttonX && x <= buttonX + buttonW && y >= buttonY && y <= buttonY + buttonH;

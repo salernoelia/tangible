@@ -285,17 +285,17 @@ export class MediaManager {
                 }
             } else if (resource.type === 'video') {
                 const video = resource.element as p5.MediaElement;
-                if (video && video.elt && video.elt.readyState >= 2) {
+                if (video && video.elt && (video.elt as HTMLVideoElement).readyState >= 2) {
                     p.image(video, x, y, w, h);
                 }
             } else if (resource.type === 'camera') {
-                const video = resource.element as HTMLVideoElement;
-                if (video && video.readyState >= 2 && video.videoWidth > 0) {
-                    p.image(video as any, x, y, w, h);
+                const video = resource.element as p5.MediaElement;
+                if (video && video.elt && (video.elt as HTMLVideoElement).readyState >= 2) {
+                    p.image(video, x, y, w, h);
                 }
             } else if (resource.type === 'shader') {
                 const graphics = resource.element as p5.Graphics;
-                if (graphics) {
+                if (graphics && graphics.width > 0 && graphics.height > 0) {
                     p.image(graphics, x, y, w, h);
                 }
             }

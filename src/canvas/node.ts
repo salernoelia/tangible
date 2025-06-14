@@ -11,7 +11,7 @@ export class Node {
     handles: NodeHandle[];
     selected: boolean = false;
     
-    width: number = 200;
+    width: number = 240;
     height: number = 120;
     cornerRadius: number = 8;
     
@@ -50,7 +50,7 @@ export class Node {
             this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
         } else if (this.type === 'Shader') {
             this.height = Math.max(280, 180 + maxHandles * this.handleSpacing); // Taller for preview + code
-            this.width = 250;
+            this.width = 280;
         } else if (this.type === 'Output') {
             this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
         } else {

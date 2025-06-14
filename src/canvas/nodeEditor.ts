@@ -3,6 +3,7 @@ import { Node, createNodeFromType } from './Node';
 import { Connection } from './Connection';
 import { type NodeConnection, type NodeHandle } from '../types/node';
 import { CanvasControls } from '../utils/ControlsManager';
+import { NodeRenderer } from './NodeRenderer';
 
 interface DragState {
     isDragging: boolean;
@@ -24,6 +25,7 @@ export class NodeEditor {
     };
     private controls: CanvasControls;
     private pendingNodeType: string | null = null;
+    private renderer = new NodeRenderer();
 
     constructor(controls: CanvasControls) {
         this.controls = controls;
@@ -185,6 +187,16 @@ export class NodeEditor {
             this.pendingNodeType = null;
             document.dispatchEvent(new CustomEvent('toggle-node-picker'));
             return true;
+        }
+        
+        // Check for shader edit button clicks
+        for (const node of this.nodes.values()) {
+            if (this.renderer.isPointInShaderEditButton(node, worldPos.x, worldPos.y)) {
+                document.dispatchEvent(new CustomEvent('open-shader-editor', {
+                    detail: { node }
+                }));
+                return true;
+            }
         }
         
         for (const node of this.nodes.values()) {

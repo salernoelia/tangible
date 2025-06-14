@@ -140,7 +140,12 @@ const emit = defineEmits<{
 }>();
 
 const shaderCode = ref(props.initialCode);
-const params = ref({ ...props.initialParams });
+const params = ref({
+    param1: 1.0,
+    param2: 1.0,
+    param3: 1.0,
+    ...props.initialParams
+});
 const compileError = ref('');
 
 const validateShader = (code: string) => {
@@ -188,6 +193,11 @@ watch(() => props.initialCode, (newCode) => {
 }, { immediate: true });
 
 watch(() => props.initialParams, (newParams) => {
-    params.value = { ...newParams };
+    params.value = {
+        param1: 1.0,
+        param2: 1.0,
+        param3: 1.0,
+        ...newParams
+    };
 }, { immediate: true });
 </script>
