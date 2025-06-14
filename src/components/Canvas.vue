@@ -1,167 +1,138 @@
 <template>
-    <div
-        ref="canvasContainer"
-        class="dot-grid-board"
-        :style="containerStyle"
-    ></div>
+    <div class="flex-1 relative overflow-hidden">
+        <div
+            ref="p5Container"
+            class="w-full h-full"
+        ></div>
+    </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import p5 from 'p5'
-import { drawOptimizedDotGrid } from '../canvas/drawOptimizedDotGrid'
-import { CanvasControls, type CanvasState, type CanvasConfig } from '../utils/controls'
-import { NodeEditor } from '../canvas/nodeEditor'
+import { ref, onMounted, onUnmounted } from 'vue';
+import p5 from 'p5';
+import { NodeEditor } from '../canvas/NodeEditor';
+import { CanvasControls, type CanvasState, type CanvasConfig } from '../utils/ControlsManager';
+import { MediaManager } from '../utils/MediaManager';
 
-const canvasContainer = ref<HTMLElement>()
+const p5Container = ref<HTMLDivElement>();
 
-const zoom = ref(1.0)
-const offsetX = ref(0)
-const offsetY = ref(0)
-const isDragging = ref(false)
-const lastMouseX = ref(0)
-const lastMouseY = ref(0)
+const state: CanvasState = {
+    zoom: { value: 1 },
+    offsetX: { value: 0 },
+    offsetY: { value: 0 },
+    isDragging: { value: false },
+    lastMouseX: { value: 0 },
+    lastMouseY: { value: 0 }
+};
 
-const baseGridSpacing = 23
-const baseDotSize = 1.5
+const config: CanvasConfig = {
+    minZoom: 0.1,
+    maxZoom: 3,
+    zoomSpeed: 1.1
+};
 
-const canvasConfig: CanvasConfig = {
-    minZoom: 1.0,
-    maxZoom: 3.0,
-    zoomSpeed: 1.15
-}
-
-const canvasState: CanvasState = {
-    zoom,
-    offsetX,
-    offsetY,
-    isDragging,
-    lastMouseX,
-    lastMouseY
-}
-
-const containerStyle = `
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    cursor: grab;
-    user-select: none;
-    image-rendering: pixelated;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: crisp-edges;
-  `
-
-let p5Instance: p5 | null = null
-let controls: CanvasControls
-let nodeEditor: NodeEditor
-let lastDrawnBounds = { startX: 0, endX: 0, startY: 0, endY: 0 }
+let p5Instance: p5;
+let nodeEditor: NodeEditor;
+let controls: CanvasControls;
 
 onMounted(() => {
-    controls = new CanvasControls(canvasState, canvasConfig)
-    nodeEditor = new NodeEditor(controls)
+    if (!p5Container.value) return;
 
-    const sketch = (p: p5) => {
+    controls = new CanvasControls(state, config);
+    nodeEditor = new NodeEditor(controls);
+
+    p5Instance = new p5((p: p5) => {
         p.setup = () => {
-            p.createCanvas(p.windowWidth, p.windowHeight)
-            p.colorMode(p.RGB)
-            p.pixelDensity(1)
-        }
+            const canvas = p.createCanvas(p5Container.value!.clientWidth, p5Container.value!.clientHeight);
+            canvas.parent(p5Container.value!);
+
+            MediaManager.getInstance().setP5Instance(p);
+
+            p.textFont('Arial');
+        };
 
         p.draw = () => {
-            p.background(20, 20, 20)
-            p.push()
+            p.background(30);
 
-            p.translate(offsetX.value, offsetY.value)
-            p.scale(zoom.value)
+            p.push();
+            p.translate(state.offsetX.value, state.offsetY.value);
+            p.scale(state.zoom.value);
 
-            const effectiveGridSpacing = baseGridSpacing * zoom.value
-            const effectiveDotSize = Math.max(0.5, baseDotSize * zoom.value)
+            drawGrid(p);
+            nodeEditor.draw(p, state.zoom.value);
 
-            drawOptimizedDotGrid(p, zoom, offsetX, offsetY, baseGridSpacing, { value: effectiveDotSize }, lastDrawnBounds)
-
-            nodeEditor.draw(p, zoom.value)
-
-            p.pop()
-
-            drawUI(p)
-        }
+            p.pop();
+        };
 
         p.mousePressed = () => {
-            const nodeHandled = nodeEditor.handleMousePressed(p)
-            if (!nodeHandled) {
-                return controls.handleMousePressed(p)
+            let handled = nodeEditor.handleMousePressed(p);
+            if (!handled) {
+                handled = controls.handleMousePressed(p);
             }
-            return false
-        }
+            return false;
+        };
 
         p.mouseDragged = () => {
-            const nodeHandled = nodeEditor.handleMouseDragged(p)
-            if (!nodeHandled) {
-                return controls.handleMouseDragged(p)
+            let handled = nodeEditor.handleMouseDragged(p);
+            if (!handled) {
+                handled = controls.handleMouseDragged(p);
             }
-            return false
-        }
+            return false;
+        };
 
         p.mouseReleased = () => {
-            nodeEditor.handleMouseReleased(p)
-            controls.handleMouseReleased()
-        }
+            nodeEditor.handleMouseReleased(p);
+            controls.handleMouseReleased();
+        };
 
-        p.mouseWheel = (event: any) => controls.handleMouseWheel(p, event)
+        p.mouseWheel = (event: any) => {
+            controls.handleMouseWheel(p, event);
+            return false;
+        };
 
         p.keyPressed = () => {
-            nodeEditor.handleKeyPressed(p)
-            controls.handleKeyPressed(p)
-        }
+            nodeEditor.handleKeyPressed(p);
+            controls.handleKeyPressed(p);
+        };
 
         p.windowResized = () => {
-            p.resizeCanvas(p.windowWidth, p.windowHeight)
-        }
+            p.resizeCanvas(p5Container.value!.clientWidth, p5Container.value!.clientHeight);
+        };
+    });
+});
 
-        function drawUI(p: p5) {
-            p.fill(0, 0, 0, 150)
-            p.noStroke()
-            p.rect(10, 10, 140, 30, 5)
+const drawGrid = (p: p5) => {
+    const gridSize = 50;
+    const zoom = state.zoom.value;
+    const offsetX = state.offsetX.value;
+    const offsetY = state.offsetY.value;
 
-            p.fill(255)
-            p.textAlign(p.LEFT, p.CENTER)
-            p.textSize(14)
-            p.text(`Zoom: ${(zoom.value * 100).toFixed(1)}%`, 20, 25)
+    if (zoom < 0.5) return;
 
-            p.fill(0, 0, 0, 100)
-            p.rect(10, 50, 200, 30, 5)
+    const startX = Math.floor(-offsetX / zoom / gridSize) * gridSize;
+    const startY = Math.floor(-offsetY / zoom / gridSize) * gridSize;
+    const endX = startX + (p.width / zoom) + gridSize;
+    const endY = startY + (p.height / zoom) + gridSize;
 
-            p.fill(255)
-            p.textSize(10)
-            p.text(`FPS: ${p.frameRate().toFixed(1)}`, 20, 65)
+    p.stroke(40);
+    p.strokeWeight(1 / zoom);
 
-            p.fill(0, 0, 0, 100)
-            p.rect(10, p.height - 120, 300, 110, 5)
-
-            p.fill(255)
-            p.textSize(11)
-            p.text('Node Editor Controls:', 20, p.height - 105)
-            p.text('N: Create Number node', 20, p.height - 90)
-            p.text('M: Create Math node', 20, p.height - 75)
-            p.text('Drag handles to connect', 20, p.height - 60)
-            p.text('Delete: Remove selected nodes', 20, p.height - 45)
-            p.text('Mouse wheel: Zoom', 20, p.height - 30)
-            p.text('Spacebar: Reset view', 20, p.height - 15)
-        }
+    for (let x = startX; x <= endX; x += gridSize) {
+        p.line(x, startY, x, endY);
     }
 
-    if (canvasContainer.value) {
-        p5Instance = new p5(sketch, canvasContainer.value)
+    for (let y = startY; y <= endY; y += gridSize) {
+        p.line(startX, y, endX, y);
     }
-})
+};
 
 onUnmounted(() => {
     if (p5Instance) {
-        p5Instance.remove()
+        p5Instance.remove();
     }
-})
+    MediaManager.getInstance().stopCamera();
+});
 </script>
-
 <style scoped>
 .dot-grid-board {
     width: 100vw;

@@ -1,6 +1,7 @@
 import p5 from 'p5';
-import { type NodeData, type NodeHandle, type NodePosition, DataType } from '../types/node';
-import { nodeTypeConfigs, type NodeTypeConfig } from '../data/nodeTypeConfigs';
+import { type NodeData, type NodeHandle, type NodePosition, type DataType } from '../types/node';
+import { nodeTypeConfigs, type NodeTypeConfig } from '../data/NodeTypeConfigs';
+import { NodeRenderer } from './NodeRenderer';
 
 export class Node {
     id: string;
@@ -11,7 +12,7 @@ export class Node {
     selected: boolean = false;
     
     width: number = 200;
-    height: number = 100;
+    height: number = 120;
     cornerRadius: number = 8;
     
     handleRadius: number = 8;
@@ -22,6 +23,7 @@ export class Node {
     hasInput: boolean = false;
     isEditing: boolean = false;
     private config: NodeTypeConfig;
+    private renderer: NodeRenderer = new NodeRenderer();
 
     constructor(nodeData: NodeData) {
         this.id = nodeData.id;
@@ -32,17 +34,55 @@ export class Node {
         this.hasInput = nodeData.hasInput || false;
         this.config = nodeTypeConfigs[this.type];
         
+        this.calculateDimensions();
+        this.initializeInputValues();
+        this.initializeNode();
+    }
+
+    calculateDimensions(): void {
         const maxHandles = Math.max(
             this.getInputHandles().length,
             this.getOutputHandles().length
         );
-        this.height = Math.max(100, 60 + maxHandles * this.handleSpacing + (this.hasInput ? 30 : 0));
         
+        // Adjust height for media nodes with previews
+        if (['Image', 'Video', 'Camera'].includes(this.type)) {
+            this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
+        } else if (this.type === 'Shader') {
+            this.height = Math.max(280, 180 + maxHandles * this.handleSpacing); // Taller for preview + code
+            this.width = 250;
+        } else if (this.type === 'Output') {
+            this.height = Math.max(150, 80 + maxHandles * this.handleSpacing);
+        } else {
+            this.height = Math.max(120, 80 + maxHandles * this.handleSpacing + (this.hasInput ? 30 : 0));
+        }
+    }
+
+
+    private initializeInputValues(): void {
         this.getInputHandles().forEach(handle => {
             this.inputValues.set(handle.id, null);
         });
+    }
+
+    private async initializeNode(): Promise<void> {
+        if (this.config?.initLogic) {
+            await this.config.initLogic(this);
+        }
+        
+        if (this.type === 'Time') {
+            this.startTimeUpdate();
+        }
         
         this.updateOutput();
+    }
+
+    private startTimeUpdate(): void {
+        setInterval(() => {
+            if (this.type === 'Time') {
+                this.updateOutput();
+            }
+        }, 16);
     }
 
     getInputHandles(): NodeHandle[] {
@@ -98,6 +138,16 @@ export class Node {
     isPointInInputField(x: number, y: number): boolean {
         if (!this.hasInput) return false;
         
+        if (this.type === 'Shader') {
+            const fieldX = this.position.x + 10;
+            const fieldY = this.position.y + 110; // Below preview
+            const fieldWidth = this.width - 20;
+            const fieldHeight = this.height - 150;
+            
+            return x >= fieldX && x <= fieldX + fieldWidth && 
+                   y >= fieldY && y <= fieldY + fieldHeight;
+        }
+        
         const fieldX = this.position.x + 10;
         const fieldY = this.position.y + this.height - 35;
         const fieldWidth = this.width - 20;
@@ -111,7 +161,7 @@ export class Node {
         if (sourceHandle.id === targetHandle.id) return false;
         if (sourceHandle.position === targetHandle.position) return false;
         
-        if (sourceHandle.dataType === DataType.Any || targetHandle.dataType === DataType.Any) {
+        if (sourceHandle.dataType === 'any' || targetHandle.dataType === 'any') {
             return true;
         }
         
@@ -130,136 +180,7 @@ export class Node {
     }
 
     draw(p: p5, zoom: number): void {
-        const textScale = Math.max(0.8, Math.min(1.2, zoom));
-        
-        p.fill(this.selected ? 70 : 50);
-        p.stroke(this.selected ? 120 : 80);
-        p.strokeWeight(1);
-        p.rect(this.position.x, this.position.y, this.width, this.height, this.cornerRadius);
-
-        p.fill(255);
-        p.noStroke();
-        p.textAlign(p.CENTER, p.TOP);
-        p.textSize(14 * textScale);
-        p.textStyle(p.BOLD);
-        p.text(this.type, this.position.x + this.width / 2, this.position.y + 8);
-
-        this.drawHandles(p, zoom, textScale);
-        
-        if (this.hasInput) {
-            this.drawInputField(p, textScale);
-        }
-        
-        this.drawOutputValue(p, textScale);
-    }
-
-    private drawHandles(p: p5, zoom: number, textScale: number): void {
-        this.handles.forEach(handle => {
-            const pos = this.getHandlePosition(handle.id);
-            if (pos) {
-                this.drawHandle(p, pos.x, pos.y, handle, zoom);
-                this.drawHandleLabel(p, pos, handle, textScale);
-            }
-        });
-    }
-
-    private drawHandle(p: p5, x: number, y: number, handle: NodeHandle, zoom: number): void {
-        const color = this.getDataTypeColor(handle.dataType);
-        
-        p.fill(handle.connected ? color.r : 40, handle.connected ? color.g : 40, handle.connected ? color.b : 40);
-        p.stroke(color.r, color.g, color.b);
-        p.strokeWeight(2);
-        p.ellipse(x, y, this.handleRadius * 2, this.handleRadius * 2);
-        
-        if (handle.connected) {
-            p.fill(255);
-            p.noStroke();
-            p.ellipse(x, y, this.handleRadius, this.handleRadius);
-        }
-    }
-
-    private drawHandleLabel(p: p5, pos: { x: number; y: number }, handle: NodeHandle, textScale: number): void {
-        p.fill(200);
-        p.noStroke();
-        p.textStyle(p.NORMAL);
-        p.textSize(10 * textScale);
-        
-        if (handle.position === 'input') {
-            p.textAlign(p.LEFT, p.CENTER);
-            const displayText = this.inputValues.get(handle.id) !== null 
-                ? String(this.inputValues.get(handle.id)) 
-                : this.getHandleName(handle);
-            p.text(displayText, pos.x + this.handleRadius + 5, pos.y);
-        } else {
-            p.textAlign(p.RIGHT, p.CENTER);
-            p.text(this.getHandleName(handle), pos.x - this.handleRadius - 5, pos.y);
-        }
-    }
-
-    private drawInputField(p: p5, textScale: number): void {
-        const fieldX = this.position.x + 10;
-        const fieldY = this.position.y + this.height - 35;
-        const fieldWidth = this.width - 20;
-        const fieldHeight = 25;
-        
-        p.fill(this.isEditing ? 80 : 60);
-        p.stroke(this.isEditing ? 120 : 100);
-        p.strokeWeight(1);
-        p.rect(fieldX, fieldY, fieldWidth, fieldHeight, 3);
-        
-        p.fill(255);
-        p.noStroke();
-        p.textAlign(p.LEFT, p.CENTER);
-        p.textSize(11 * textScale);
-        p.textStyle(p.NORMAL);
-        
-        const displayValue = this.data.value !== undefined ? String(this.data.value) : '';
-        p.text(displayValue, fieldX + 5, fieldY + fieldHeight / 2);
-        
-        if (this.isEditing) {
-            p.stroke(255);
-            p.strokeWeight(1);
-            const textWidth = p.textWidth(displayValue);
-            p.line(fieldX + 5 + textWidth + 2, fieldY + 5, fieldX + 5 + textWidth + 2, fieldY + fieldHeight - 5);
-        }
-    }
-
-    private drawOutputValue(p: p5, textScale: number): void {
-        if (this.outputValue !== null && this.outputValue !== undefined) {
-            p.fill(150, 255, 150);
-            p.noStroke(); 
-            p.textAlign(p.RIGHT);
-            p.textSize(10 * textScale);
-            p.textStyle(p.NORMAL);
-            p.text(`${this.outputValue}`, this.position.x + this.width - 5, this.position.y + 15);
-        }
-    }
-
-    private getHandleName(handle: NodeHandle): string {
-        const parts = handle.id.split('-');
-        if (parts.length >= 2) {
-            return parts[parts.length - 1];
-        }
-        return handle.position === 'input' ? 'in' : 'out';
-    }
-
-    private getDataTypeColor(dataType: DataType): { r: number; g: number; b: number } {
-        switch (dataType) {
-            case DataType.Number:
-                return { r: 100, g: 200, b: 100 };
-            case DataType.String:
-                return { r: 200, g: 100, b: 100 };
-            case DataType.Boolean:
-                return { r: 100, g: 100, b: 200 };
-            case DataType.Vector:
-                return { r: 200, g: 200, b: 100 };
-            case DataType.Color:
-                return { r: 200, g: 100, b: 200 };
-            case DataType.Any:
-                return { r: 150, g: 150, b: 150 };
-            default:
-                return { r: 100, g: 100, b: 100 };
-        }
+        this.renderer.drawNode(p, this, zoom);
     }
 
     move(deltaX: number, deltaY: number): void {
@@ -276,8 +197,12 @@ export class Node {
         if (!this.hasInput || !this.isEditing) return;
         
         if (key === 'Backspace') {
-            const currentValue = String(this.data.value || '');
-            this.data.value = currentValue.slice(0, -1);
+            if (this.type === 'Shader') {
+                this.data.fragmentShader = this.data.fragmentShader.slice(0, -1);
+            } else {
+                const currentValue = String(this.data.value || '');
+                this.data.value = currentValue.slice(0, -1);
+            }
         } else if (key === 'Enter') {
             this.isEditing = false;
             if (this.type === 'Number') {
@@ -285,8 +210,12 @@ export class Node {
             }
             this.updateOutput();
         } else if (key.length === 1) {
-            const currentValue = String(this.data.value || '');
-            this.data.value = currentValue + key;
+            if (this.type === 'Shader') {
+                this.data.fragmentShader = (this.data.fragmentShader || '') + key;
+            } else {
+                const currentValue = String(this.data.value || '');
+                this.data.value = currentValue + key;
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 import p5 from 'p5';
-import { Node, createNodeFromType } from './node';
-import { Connection } from './connection';
+import { Node, createNodeFromType } from './Node';
+import { Connection } from './Connection';
 import { type NodeConnection, type NodeHandle } from '../types/node';
-import { CanvasControls } from '../utils/controls';
+import { CanvasControls } from '../utils/ControlsManager';
 
 interface DragState {
     isDragging: boolean;

@@ -1,3 +1,12 @@
+export type DataType = 
+    | 'number'
+    | 'string'
+    | 'boolean'
+    | 'vector'
+    | 'color'
+    | 'texture'
+    | 'any';
+
 export interface NodeHandle {
     id: string;
     type: HandleType;
@@ -30,16 +39,6 @@ export interface NodeData {
     hasInput: boolean;
 }
 
-export enum DataType {
-    Number = 'number',
-    String = 'string',
-    Boolean = 'boolean',
-    Vector = 'vector',
-    Color = 'color',
-    Any = 'any'
-}
-
-export enum HandleType {
-    Source = 'source',
-    Target = 'target'
-}
+export type HandleType = 
+    | 'source'
+    | 'target';

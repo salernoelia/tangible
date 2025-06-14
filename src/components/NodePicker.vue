@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref, computed, useTemplateRef } from 'vue'
-import { getAvailableNodeTypes } from '../canvas/node'
+import { getAvailableNodeTypes } from '../canvas/Node'
 import { watch, onMounted, onUnmounted } from 'vue'
 
 const searchRef = useTemplateRef('searchRef')
