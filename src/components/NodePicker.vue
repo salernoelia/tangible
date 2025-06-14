@@ -3,6 +3,7 @@
         class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] bg-gray-950 rounded-2xl flex flex-col p-4 border gap-4 border-gray-800">
         <input
             v-model="searchTerm"
+            ref="searchRef"
             class="bg-gray-700 rounded-sm p-2 text-white placeholder-gray-400 border border-gray-600 focus:border-gray-500 focus:outline-none"
             placeholder="Search..."
             autofocus
@@ -36,9 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useTemplateRef } from 'vue'
 import { getAvailableNodeTypes } from '../canvas/node'
+import { watch, onMounted, onUnmounted } from 'vue'
 
+const searchRef = useTemplateRef('searchRef')
 const searchTerm = ref('')
 const nodeTypes = getAvailableNodeTypes()
 
@@ -52,9 +55,37 @@ const filteredNodes = computed(() => {
     )
 })
 
+
+
 const selectNode = (node: any) => {
     document.dispatchEvent(new CustomEvent('node-selected', {
         detail: { nodeType: node.name }
     }))
 }
+
+const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && filteredNodes.value.length > 0) {
+        selectNode(filteredNodes.value[0])
+    }
+}
+
+
+onMounted(() => {
+    if (searchRef.value) {
+        searchRef.value.focus()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeyDown)
+})
+
+watch(() => searchRef.value, (newSearchRef) => {
+    if (newSearchRef) {
+        setTimeout(() => {
+            newSearchRef.focus()
+        }, 0)
+    }
+})
 </script>

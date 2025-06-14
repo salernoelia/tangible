@@ -228,10 +228,10 @@ export class Node {
         if (this.outputValue !== null && this.outputValue !== undefined) {
             p.fill(150, 255, 150);
             p.noStroke(); 
-            p.textAlign(p.CENTER, p.CENTER);
+            p.textAlign(p.RIGHT);
             p.textSize(10 * textScale);
             p.textStyle(p.NORMAL);
-            p.text(`Result: ${this.outputValue}`, this.position.x + this.width / 2, this.position.y + this.height - 5);
+            p.text(`${this.outputValue}`, this.position.x + this.width - 5, this.position.y + 15);
         }
     }
 

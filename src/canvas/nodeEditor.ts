@@ -1,7 +1,7 @@
 import p5 from 'p5';
 import { Node, createNodeFromType } from './node';
 import { Connection } from './connection';
-import { type NodeConnection, type NodeHandle, DataType } from '../types/node';
+import { type NodeConnection, type NodeHandle } from '../types/node';
 import { CanvasControls } from '../utils/controls';
 
 interface DragState {

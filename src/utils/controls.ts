@@ -72,7 +72,7 @@ export class CanvasControls {
     }
 
     handleKeyPressed(p: p5): void {
-        if (p.key === 'e') { 
+        if ((p.key === 'e' && p.keyIsDown(p.CONTROL))) { 
             document.dispatchEvent(new CustomEvent('toggle-node-picker'));
         }
         
