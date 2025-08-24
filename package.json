@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bithero/monaco-glsl": "^1.1.0",
     "@tailwindcss/vite": "^4.1.12",
     "@vueuse/core": "^13.7.0",
     "class-variance-authority": "^0.7.1",

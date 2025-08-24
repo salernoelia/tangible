@@ -2,10 +2,12 @@
   setup
   lang="ts"
 >
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+// import '@bithero/monaco-glsl';
+
 
 const props = defineProps<{
   editor_id: string;
@@ -17,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const container = ref<HTMLDivElement>();
+let editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
 self.MonacoEnvironment = {
   getWorker: function (_, label) {
@@ -40,7 +43,7 @@ onMounted(() => {
     `file:///${props.editor_id}.js`
   );
 
-  const editor = monaco.editor.create(container.value, {
+  editor = monaco.editor.create(container.value, {
     value: props.modelValue,
     language: 'javascript',
     automaticLayout: true,
@@ -48,7 +51,7 @@ onMounted(() => {
   });
 
   editor.onDidChangeModelContent(() => {
-    const value = editor.getValue();
+    const value = editor!.getValue();
     emit('update:modelValue', value);
 
     // Update intellisense
@@ -57,6 +60,13 @@ onMounted(() => {
       `file:///${props.editor_id}.js`
     );
   });
+});
+
+// Watch for changes in modelValue to update editor content when switching editors
+watch(() => props.modelValue, (newValue) => {
+  if (editor && editor.getValue() !== newValue) {
+    editor.setValue(newValue);
+  }
 });
 </script>
 
@@ -70,7 +80,7 @@ onMounted(() => {
 <style scoped>
 .editor-container {
   width: 100%;
-  height: 300px;
+  height: 100%;
   border: 1px solid #ccc;
 }
 </style>
