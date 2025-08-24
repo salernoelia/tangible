@@ -2,31 +2,25 @@
   setup
   lang="ts"
 >
-import { onMounted } from 'vue';
-import { useStorage } from '@vueuse/core'
+import { onMounted, ref } from 'vue';
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
-const props = defineProps<{ editor_id: string }>()
+const props = defineProps<{
+  editor_id: string;
+  modelValue: string;
+}>();
 
+const emit = defineEmits<{
+  'update:modelValue': [value: string];
+}>();
+
+const container = ref<HTMLDivElement>();
 
 self.MonacoEnvironment = {
   getWorker: function (_, label) {
     switch (label) {
-      case 'json':
-        return new jsonWorker();
-      case 'css':
-      case 'scss':
-      case 'less':
-        return new cssWorker();
-      case 'html':
-      case 'handlebars':
-      case 'razor':
-        return new htmlWorker();
       case 'typescript':
       case 'javascript':
         return new tsWorker();
@@ -36,39 +30,47 @@ self.MonacoEnvironment = {
   }
 };
 
-const editor_content = useStorage(
-  props.editor_id,
-  `function main() {\n\talert('Hello world!');\n}`,
-  localStorage
-)
-
-
 onMounted(() => {
-  const container = document.getElementById('container')
-  if (!container) return
+  if (!container.value) return;
 
-  const utils_code = "function hellow() { console.log('world'); return 50;}"
-  monaco.languages.typescript.javascriptDefaults.addExtraLib(utils_code);
+  // Add intellisense for all editors
+  const allCode = props.modelValue;
+  monaco.languages.typescript.javascriptDefaults.addExtraLib(
+    allCode,
+    `file:///${props.editor_id}.js`
+  );
 
-  const editor = monaco.editor.create(container, {
-    value: editor_content.value,
+  const editor = monaco.editor.create(container.value, {
+    value: props.modelValue,
     language: 'javascript',
-    automaticLayout: true
-  })
+    automaticLayout: true,
+    minimap: { enabled: false }
+  });
 
   editor.onDidChangeModelContent(() => {
-    editor_content.value = editor.getValue()
-  })
-})
+    const value = editor.getValue();
+    emit('update:modelValue', value);
+
+    // Update intellisense
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      value,
+      `file:///${props.editor_id}.js`
+    );
+  });
+});
 </script>
 
 <template>
-  <div id="container"></div>
+  <div
+    ref="container"
+    class="editor-container"
+  ></div>
 </template>
 
 <style scoped>
-#container {
+.editor-container {
   width: 100%;
-  height: 400px;
+  height: 300px;
+  border: 1px solid #ccc;
 }
 </style>

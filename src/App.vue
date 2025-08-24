@@ -2,54 +2,106 @@
   setup
   lang="ts"
 >
-
 import { useStorage } from '@vueuse/core';
 import Editor from './components/Editor.vue';
 import { Button } from '@/components/ui/button'
 import { ref } from 'vue';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
 
-// const instance = {
-//   id: "38c2a142-7eef-4b1a-bdf7-23d3d2b5e8bc",
-//   editors: ["386aef5f-a183-49b3-a829-0c855142d752", "eb9b6a81-4ebb-4920-a3f8-4d36614a40d7"]
-// }
+type Instance = {
+  id: string,
+  editors: {
+    id: string,
+    content: string,
+  }[]
+}
 
-const editor_id_1 = "386aef5f-a183-49b3-a829-0c855142d752"
-
-// const instance_content = useStorage <
-
-const editor_content = useStorage<string | null>(editor_id_1, null)
+const instance_content = useStorage<Instance>("instance", {
+  id: "main",
+  editors: [
+    {
+      id: "editor-1",
+      content: "function hello() { console.log('world'); return 50; }"
+    }
+  ]
+})
 
 const output = ref<string>("");
 
+function spawnEditor() {
+  const newId = `editor-${Date.now()}`;
+  instance_content.value.editors.push({
+    id: newId,
+    content: "// New editor"
+  });
+}
+
 function run() {
-  if (!editor_content.value) {
-    output.value = "No code";
-    return;
-  }
   try {
-    console.log(editor_content.value)
-    const result = eval(editor_content.value + "; main();");
-    output.value = String(result);
+    const code = instance_content.value.editors
+      .map(editor => editor.content)
+      .join('\n');
+
+    const result = eval(code);
+    output.value = String(result || 'Executed');
   } catch (e) {
     output.value = "Error: " + (e as Error).message;
   }
 }
-
 </script>
 
 <template>
   <div>
-    <Editor :editor_id_1="editor_id_1" />
-    <Editor :editor_id_1="editor_id_2" />
-    <Button @click="run">Run</Button>
+    <ResizablePanelGroup
+      direction="horizontal"
+      class="h-screen w-screen"
+    >
+      <ResizablePanel class="h-screen">
 
-    <div>
-      <strong>Output:</strong>
-      <pre>{{ output }}</pre>
-    </div>
+      </ResizablePanel>
+      <ResizableHandle with-handle />
+      <ResizablePanel class="h-screen">
+        <div class="flex flex-row">
+          <Button @click="spawnEditor">Add Editor</Button>
+          <Button @click="run">Run All</Button>
+        </div>
+
+        <div class="editors">
+          <Editor
+            v-for="editor in instance_content.editors"
+            :key="editor.id"
+            :editor_id="editor.id"
+            v-model="editor.content"
+          />
+        </div>
+        <div>
+          <strong>Output:</strong>
+          <pre>{{ output }}</pre>
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+
+
+
+
   </div>
 </template>
 
+<style scoped>
+.editors>* {
+  margin-bottom: 10px;
+}
+
+.controls {
+  margin: 10px 0;
+  gap: 10px;
+  display: flex;
+}
+</style>
 <style scoped>
 .logo {
   height: 6em;
