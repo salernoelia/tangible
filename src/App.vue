@@ -15,6 +15,7 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
 import SidebarMenuItem from "./components/ui/sidebar/SidebarMenuItem.vue";
+import Graph from "./components/Graph.vue";
 
 
 type Instance = {
@@ -138,10 +139,10 @@ function runCurrentNode() {
               </a>
             </SidebarMenuItem>
           </AppSidebar>
-          <main>
+          <main class="w-full">
             <SidebarTrigger class="mt-2 ml-2" />
 
-
+            <Graph class="h-full w-full" />
 
 
           </main>
