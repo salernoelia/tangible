@@ -16,7 +16,12 @@ import {
 } from '@/components/ui/resizable'
 import SidebarMenuItem from "./components/ui/sidebar/SidebarMenuItem.vue";
 import Graph from "./components/Graph.vue";
+import { useCounterStore } from '@/stores/CounterStore'
 
+
+const store = useCounterStore()
+
+console.log(store.name)
 
 type Instance = {
   id: string,
