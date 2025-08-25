@@ -8,7 +8,7 @@ import { useStorage } from '@vueuse/core';
 import Editor from './components/Editor.vue';
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -16,12 +16,12 @@ import {
 } from '@/components/ui/resizable'
 import SidebarMenuItem from "./components/ui/sidebar/SidebarMenuItem.vue";
 import Graph from "./components/Graph.vue";
-import { useCounterStore } from '@/stores/CounterStore'
+
+import { useGraphStore } from '@/stores/GraphStore'
 
 
-const store = useCounterStore()
-
-console.log(store.name)
+// const store = useCounterStore()
+const graphStore = useGraphStore()
 
 type Instance = {
   id: string,
@@ -86,9 +86,20 @@ function deleteNode() {
   }
 }
 
+// Sync graph store with instance content
+watch(() => instance_content.value.nodes, (newNodes) => {
+  graphStore.syncWithInstance(newNodes)
+}, { deep: true, immediate: true })
+
 function runAllNodes() {
   try {
-    const code = instance_content.value.nodes
+    // Use execution order from graph store
+    const executionOrder = graphStore.getExecutionOrder
+    const orderedNodes = executionOrder
+      .map(id => instance_content.value.nodes.find(n => n.id === id))
+      .filter(Boolean)
+
+    const code = orderedNodes
       .map(editor => editor.content)
       .join('\n');
 
