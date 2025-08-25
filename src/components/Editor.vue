@@ -36,7 +36,7 @@ self.MonacoEnvironment = {
 onMounted(() => {
   if (!container.value) return;
 
-  // Add intellisense for all editors
+  // Add intellisense for all nodes
   const allCode = props.modelValue;
   monaco.languages.typescript.javascriptDefaults.addExtraLib(
     allCode,
@@ -62,7 +62,7 @@ onMounted(() => {
   });
 });
 
-// Watch for changes in modelValue to update editor content when switching editors
+// Watch for changes in modelValue to update editor content when switching nodes
 watch(() => props.modelValue, (newValue) => {
   if (editor && editor.getValue() !== newValue) {
     editor.setValue(newValue);
