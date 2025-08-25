@@ -2,6 +2,8 @@
   setup
   lang="ts"
 >
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import AppSidebar from "./components/AppSidebar.vue";
 import { useStorage } from '@vueuse/core';
 import Editor from './components/Editor.vue';
 import { Button } from '@/components/ui/button'
@@ -11,6 +13,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
+import SidebarMenuItem from "./components/ui/sidebar/SidebarMenuItem.vue";
 
 
 type Instance = {
@@ -18,6 +21,7 @@ type Instance = {
   editors: {
     id: string,
     content: string,
+    // lang: 'js' | 'wgsl' | 'glsl';
   }[]
 }
 
@@ -25,13 +29,13 @@ const instance_content = useStorage<Instance>("instance", {
   id: "main",
   editors: [
     {
-      id: "editor-1",
+      id: "node-1",
       content: "function hello() { console.log('world'); return 50; }"
     }
   ]
 })
 
-const current_editor_id = ref("editor-1")
+const current_editor_id = useStorage("current-editor-id", "node-1")
 
 const currentEditorContent = computed({
   get() {
@@ -46,11 +50,11 @@ const currentEditorContent = computed({
 
 const output = ref<string>("");
 
-function spawnEditor() {
-  const newId = `editor-${Date.now()}`;
+function spawnNode() {
+  const newId = `node-${Date.now()}`;
   instance_content.value.editors.push({
     id: newId,
-    content: "// New editor"
+    content: "// New node"
   });
   current_editor_id.value = instance_content.value.editors[instance_content.value.editors.length - 1].id
 }
@@ -69,7 +73,7 @@ function deleteEditor() {
     current_editor_id.value = instance_content.value.editors[0].id
 
   } else {
-    spawnEditor()
+    spawnNode()
   }
 }
 
@@ -79,8 +83,19 @@ function run() {
       .map(editor => editor.content)
       .join('\n');
 
+    // Capture console output
+    let consoleOutput = '';
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+      consoleOutput += args.map(String).join(' ') + '\n';
+    };
+
     const result = eval(code);
-    output.value = String(result || 'Executed');
+
+    // Restore original console.log
+    console.log = originalConsoleLog;
+
+    output.value = consoleOutput + (result !== undefined ? `Return value: ${String(result)}` : '');
   } catch (e) {
     output.value = "Error: " + (e as Error).message;
   }
@@ -99,14 +114,31 @@ function run() {
         :default-size="50"
         class="h-screen flex flex-col"
       >
-        <h1>Availible editors</h1>
-        <Button
-          v-for="e in instance_content.editors"
-          :key="e.id"
-          @click="current_editor_id = e.id"
-        >
-          id: {{ e.id }}
-        </Button>
+
+        <SidebarProvider>
+          <AppSidebar>
+            <SidebarMenuItem
+              v-for="e in instance_content.editors"
+              :key="e.id"
+            >
+              <a
+                href="#"
+                @click.prevent="current_editor_id = e.id"
+                class="flex items-center gap-2 py-2 px-3 hover:bg-gray-100 rounded"
+              >
+                <component is="span" />
+                <span>{{ e.id }}</span>
+              </a>
+            </SidebarMenuItem>
+          </AppSidebar>
+          <main>
+            <SidebarTrigger class="mt-2 ml-2" />
+
+
+
+
+          </main>
+        </SidebarProvider>
 
       </ResizablePanel>
       <ResizableHandle
@@ -115,7 +147,7 @@ function run() {
       />
       <ResizablePanel
         id="main-panel-2"
-        :default-size="50"
+        :default-size="35"
         class="h-screen"
       >
         <ResizablePanelGroup
@@ -129,7 +161,7 @@ function run() {
             class="h-screen"
           >
             <div class="controls flex flex-row">
-              <Button @click="spawnEditor">Add Editor</Button>
+              <Button @click="spawnNode">Add Editor</Button>
               <Button @click="deleteEditor">Delete Editor</Button>
               <Button @click="run">Run All</Button>
             </div>
@@ -146,7 +178,7 @@ function run() {
           />
           <ResizablePanel
             id="nested-panel-2"
-            :default-size="40"
+            :default-size="20"
             class="h-screen"
           >
             <strong>Output:</strong>
@@ -155,10 +187,6 @@ function run() {
         </ResizablePanelGroup>
       </ResizablePanel>
     </ResizablePanelGroup>
-
-
-
-
   </div>
 </template>
 
@@ -168,24 +196,8 @@ function run() {
 }
 
 .controls {
-  margin: 10px 0;
+  padding: 1rem;
   gap: 10px;
   display: flex;
-}
-</style>
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
 }
 </style>
