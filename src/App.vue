@@ -8,6 +8,7 @@ import { useStorage } from '@vueuse/core';
 import Editor from './components/Editor.vue';
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Toggle } from '@/components/ui/toggle'
 import { computed, ref, watch } from 'vue';
 import {
   ResizableHandle,
@@ -218,6 +219,12 @@ function runCurrentNode() {
             class="h-screen"
           >
             <div class="controls flex flex-row justify-end">
+              <Toggle
+                variant="outline"
+                aria-label="Toggle italic"
+              >
+                Canvas
+              </Toggle>
               <Button
                 variant="outline"
                 @click="spawnNode"

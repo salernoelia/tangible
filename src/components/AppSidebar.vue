@@ -31,7 +31,7 @@ const { onDragStart } = useDragAndDrop()
                                 :draggable="true"
                                 @dragstart="onDragStart($event, 'js')"
                             >
-                                <Plus class="w-4 h-4" />
+
                                 JavaScript Node
                             </div>
                         </SidebarMenuItem>
@@ -41,7 +41,7 @@ const { onDragStart } = useDragAndDrop()
                                 :draggable="true"
                                 @dragstart="onDragStart($event, 'glsl')"
                             >
-                                <Plus class="w-4 h-4" />
+
                                 GLSL Node
                             </div>
                         </SidebarMenuItem>
@@ -51,7 +51,7 @@ const { onDragStart } = useDragAndDrop()
                                 :draggable="true"
                                 @dragstart="onDragStart($event, 'wgsl')"
                             >
-                                <Plus class="w-4 h-4" />
+
                                 WGSL Node
                             </div>
                         </SidebarMenuItem>
@@ -59,14 +59,7 @@ const { onDragStart } = useDragAndDrop()
                 </SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarGroup>
-                <SidebarGroupLabel>Current Nodes</SidebarGroupLabel>
-                <SidebarGroupContent>
-                    <SidebarMenu>
-                        <slot />
-                    </SidebarMenu>
-                </SidebarGroupContent>
-            </SidebarGroup>
+
         </SidebarContent>
     </Sidebar>
 </template>
