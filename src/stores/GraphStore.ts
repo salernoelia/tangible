@@ -6,7 +6,7 @@ import { computed } from 'vue'
 export type NodeData = {
   id: string
   content: string
-  lang: 'js' | 'glsl' | 'wgsl'
+  lang: 'js' | 'glsl' | 'wgsl' | 'p5'
 }
 
 export const useGraphStore = defineStore('graph', () => {
@@ -77,11 +77,12 @@ export const useGraphStore = defineStore('graph', () => {
     return order
   })
 
-  const createNode = (lang: 'js' | 'glsl' | 'wgsl' = 'js', position?: { x: number, y: number }) => {
+  const createNode = (lang: 'js' | 'glsl' | 'wgsl' | 'p5' = 'js', position?: { x: number, y: number }) => {
     const templates = {
       js: "const a = 42\nconsole.log('Value:', a)",
       glsl: "vec3 color = vec3(1.0, 0.0, 0.0);\ngl_FragColor = vec4(color, 1.0);",
-      wgsl: "@fragment\nfn main() -> @location(0) vec4<f32> {\n  return vec4<f32>(1.0, 0.0, 0.0, 1.0);\n}"
+      wgsl: "@fragment\nfn main() -> @location(0) vec4<f32> {\n  return vec4<f32>(1.0, 0.0, 0.0, 1.0);\n}",
+      p5: "setup(() => {\n  background(20)\n})\n\ndraw(() => {\n  background(20)\n  fill(255, 100 + 100 * sin(time * 2), 100)\n  ellipse(width/2 + 100 * cos(time), height/2 + 50 * sin(time * 3), 50, 50)\n})"
     }
     
     const id = `node-${Date.now()}`

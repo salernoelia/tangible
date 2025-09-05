@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useGraphStore } from '@/stores/GraphStore'
 
 const state = {
-  draggedType: ref<'js' | 'glsl' | 'wgsl' | null>(null),
+  draggedType: ref<'js' | 'glsl' | 'wgsl' | 'p5' | null>(null),
   isDragOver: ref(false),
   isDragging: ref(false),
 }
@@ -17,7 +17,7 @@ export default function useDragAndDrop() {
     document.body.style.userSelect = dragging ? 'none' : ''
   })
 
-  function onDragStart(event: DragEvent, type: 'js' | 'glsl' | 'wgsl') {
+  function onDragStart(event: DragEvent, type: 'js' | 'glsl' | 'wgsl' | 'p5') {
     if (event.dataTransfer) {
       event.dataTransfer.setData('application/vueflow', type)
       event.dataTransfer.effectAllowed = 'move'

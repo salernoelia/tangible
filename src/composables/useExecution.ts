@@ -1,9 +1,12 @@
 import { useGraphStore, type NodeData } from '@/stores/GraphStore'
+import { p5Service } from '@/services/P5Service'
+import { useTimeline } from '@/services/TimelineService'
 import { ref } from 'vue'
 
 export const useExecution = () => {
   const output = ref<string[]>([])
   const graphStore = useGraphStore()
+  const timeline = useTimeline()
 
   const executeAll = () => {
     output.value = []
@@ -21,11 +24,16 @@ export const useExecution = () => {
     
     const originalConsoleLog = console.log
     let allCode = ''
+    let p5Code = ''
     
     orderedNodes.forEach((node, index) => {
-      allCode += `\n${node.content}\n`
-      if (index < orderedNodes.length - 1) {
-        allCode += `console.log('[${node.id}] executed')\n`
+      if (node.lang === 'p5') {
+        p5Code += `\n${node.content}\n`
+      } else {
+        allCode += `\n${node.content}\n`
+        if (index < orderedNodes.length - 1) {
+          allCode += `console.log('[${node.id}] executed')\n`
+        }
       }
     })
     
@@ -34,7 +42,13 @@ export const useExecution = () => {
     }
 
     try {
-      eval(allCode)
+      if (allCode.trim()) {
+        eval(allCode)
+      }
+      if (p5Code.trim()) {
+        p5Service.executeCode(p5Code)
+        timeline.play()
+      }
     } catch (e) {
       const error = e as Error
       output.value.push(`ERROR: ${error.message}`)
@@ -54,7 +68,11 @@ export const useExecution = () => {
       }
 
       try {
-        eval(graphStore.currentNode.content)
+        if (graphStore.currentNode.lang === 'p5') {
+          p5Service.executeCode(graphStore.currentNode.content)
+        } else {
+          eval(graphStore.currentNode.content)
+        }
       } catch (e) {
         const error = e as Error
         output.value.push(`ERROR: ${error.message}`)

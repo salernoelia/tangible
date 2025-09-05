@@ -19,6 +19,7 @@ const graphStore = useGraphStore()
 
 const templates = [
     { type: 'js' as const, label: 'JavaScript', color: '#3178c6' },
+    { type: 'p5' as const, label: 'P5.js Canvas', color: '#ff6b6b' },
     { type: 'glsl' as const, label: 'GLSL Shader', color: '#8b5a3c' },
     { type: 'wgsl' as const, label: 'WGSL Shader', color: '#7c4dff' }
 ]
@@ -55,7 +56,7 @@ const templates = [
             <SidebarGroup>
                 <SidebarGroupContent>
                     <SidebarMenu>
-                        <template v-for="lang in ['js', 'glsl', 'wgsl']">
+                        <template v-for="lang in ['js', 'p5', 'glsl', 'wgsl']">
                             <SidebarMenuItem
                                 :key="lang + '-group'"
                                 v-if="graphStore.canvasNodes.some(node => node.lang === lang)"
@@ -148,6 +149,10 @@ const templates = [
 
 .lang-js {
     background: #3178c6;
+}
+
+.lang-p5 {
+    background: #ff6b6b;
 }
 
 .lang-glsl {

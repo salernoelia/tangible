@@ -6,78 +6,26 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import AppSidebar from "./components/AppSidebar.vue"
 import Editor from './components/Editor.vue'
 import Graph from "./components/Graph.vue"
+import TimelineControls from "./components/TimelineControls.vue"
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useGraphStore } from '@/stores/GraphStore'
 import { useExecution } from '@/composables/useExecution'
+import { useP5Canvas } from '@/composables/useP5Canvas'
 import useHotkeys from '@/composables/useHotkeys'
 import { computed, onMounted, onUnmounted } from 'vue'
-import p5 from 'p5'
-import { ref } from "vue"
 
 const graphStore = useGraphStore()
 const { output, executeAll, executeCurrent } = useExecution()
-const p5Instance = ref<p5 | null>(null)
-
-const sketch = (p: p5) => {
-  p.setup = () => {
-    const container = document.getElementById('p5-container')
-    const width = container ? container.clientWidth : 400
-    const height = container ? container.clientHeight : 300
-    const canvas = p.createCanvas(width, height)
-    canvas.parent('p5-container')
-    p.background(50)
-  }
-
-  p.draw = () => {
-    p.background(50)
-    p.fill(255, 0, 0)
-    p.ellipse(p.mouseX, p.mouseY, 50, 50)
-  }
-
-  p.windowResized = () => {
-    const container = document.getElementById('p5-container')
-    if (container) {
-      p.resizeCanvas(container.clientWidth, container.clientHeight)
-    }
-  }
-}
-
+const { initCanvas, destroyCanvas } = useP5Canvas()
 
 onMounted(() => {
-  const container = document.getElementById('p5-container')
-  let lastWidth = container?.clientWidth
-  let lastHeight = container?.clientHeight
-
-  const resizeObserver = new ResizeObserver(() => {
-    if (p5Instance.value && container) {
-      const width = container.clientWidth
-      const height = container.clientHeight
-      if (width !== lastWidth || height !== lastHeight) {
-        p5Instance.value.resizeCanvas(width, height)
-        lastWidth = width
-        lastHeight = height
-      }
-    }
-  })
-  if (container) resizeObserver.observe(container)
-
-  // Clean up
-  onUnmounted(() => {
-    resizeObserver.disconnect()
-  })
-})
-
-
-onMounted(() => {
-  p5Instance.value = new p5(sketch)
+  initCanvas('p5-container')
 })
 
 onUnmounted(() => {
-  if (p5Instance.value) {
-    p5Instance.value.remove()
-  }
+  destroyCanvas()
 })
 
 const currentEditorContent = computed({
@@ -92,6 +40,7 @@ const currentEditorContent = computed({
 const editorLanguage = computed(() => {
   const lang = graphStore.currentNode?.lang
   if (lang === 'glsl' || lang === 'wgsl') return 'glsl'
+  if (lang === 'p5') return 'javascript'
   return 'javascript'
 })
 
@@ -156,15 +105,8 @@ useHotkeys({
           :default-size="50"
         >
           <div class="h-full flex flex-col">
+            <TimelineControls />
             <div class="controls">
-
-              <!-- <Button
-                variant="outline"
-                size="sm"
-                @click="executeCurrent"
-              >
-                Run Current (Ctrl+Shift+Enter)
-              </Button> -->
 
               <Button
                 variant="outline"

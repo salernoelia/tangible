@@ -10,9 +10,10 @@ defineProps<NodeProps>()
 const graphStore = useGraphStore()
 
 const langColors = {
-    js: '#3178c6',      // TypeScript blue  
-    glsl: '#8b5a3c',    // Brown shader color
-    wgsl: '#7c4dff'     // Purple shader color
+    js: '#3178c6',
+    p5: '#ff6b6b',
+    glsl: '#8b5a3c',
+    wgsl: '#7c4dff'
 }
 </script>
 
