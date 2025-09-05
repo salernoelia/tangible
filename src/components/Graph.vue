@@ -2,7 +2,6 @@
     setup
     lang="ts"
 >
-import { computed, ref, watch } from 'vue'
 import { VueFlow, useVueFlow, ConnectionMode } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { useGraphStore } from '@/stores/GraphStore'
@@ -11,10 +10,9 @@ import GraphEdge from './GraphEdge.vue'
 import useDragAndDrop from '@/composables/useDragAndDrop'
 
 const graphStore = useGraphStore()
-const { onConnect, fitView, onNodeDragStop } = useVueFlow()
+const { onConnect, onNodeDragStop } = useVueFlow()
 const { onDragOver, onDrop, onDragLeave, isDragOver } = useDragAndDrop()
 
-// Handle new connections
 onConnect((connection) => {
     const edge = {
         id: `${connection.source}->${connection.target}`,
@@ -25,14 +23,11 @@ onConnect((connection) => {
     graphStore.addEdge(edge)
 })
 
-// Handle node position updates
 onNodeDragStop((event) => {
     event.nodes.forEach(node => {
         graphStore.updateNodePosition(node.id, node.position)
     })
 })
-
-
 </script>
 
 <template>
@@ -41,8 +36,8 @@ onNodeDragStop((event) => {
         @drop="onDrop"
     >
         <VueFlow
-            v-model:nodes="graphStore.nodes"
-            v-model:edges="graphStore.edges"
+            v-model:nodes="graphStore.flowNodes"
+            v-model:edges="graphStore.flowEdges"
             class="vue-flow-container"
             :fit-view-on-init="true"
             :zoom-on-scroll="true"

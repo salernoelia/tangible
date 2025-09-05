@@ -1,142 +1,155 @@
 import { defineStore } from 'pinia'
 import { useStorage } from '@vueuse/core'
 import type { Node, Edge } from '@vue-flow/core'
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
+
+export type NodeData = {
+  id: string
+  content: string
+  lang: 'js' | 'glsl' | 'wgsl'
+}
 
 export const useGraphStore = defineStore('graph', () => {
-  const storedNodes = useStorage<Node[]>('graph-nodes', [])
-  const storedEdges = useStorage<Edge[]>('graph-edges', [])
+  const nodeData = useStorage<NodeData[]>('nodes', [{ 
+    id: 'node-1', 
+    content: "const message = 'Hello from Node 1'\nconsole.log(message)", 
+    lang: 'js' 
+  }])
   
-  const nodes = ref<Node[]>(storedNodes.value)
-  const edges = ref<Edge[]>(storedEdges.value)
+  const flowNodes = useStorage<Node[]>('flow-nodes', [])
+  const flowEdges = useStorage<Edge[]>('flow-edges', [])
+  const currentNodeId = useStorage('current-node-id', 'node-1')
 
-  const syncToStorage = () => {
-    storedNodes.value = nodes.value
-    storedEdges.value = edges.value
-  }
+  const currentNode = computed(() => 
+    nodeData.value.find(n => n.id === currentNodeId.value)
+  )
 
-  const addNode = (instanceNode: { id: string, content: string, lang: string }) => {
-    const newNode: Node = {
-      id: instanceNode.id,
-      type: 'custom',
-      position: { 
-        x: Math.random() * 400 + 100, 
-        y: Math.random() * 300 + 100 
-      },
-      data: { 
-        label: instanceNode.id,
-        content: instanceNode.content,
-        lang: instanceNode.lang
-      }
-    }
-    
-    nodes.value.push(newNode)
-    syncToStorage()
-  }
-
-  const updateNode = (id: string, updates: Partial<Node>) => {
-    const index = nodes.value.findIndex(n => n.id === id)
-    if (index !== -1) {
-      nodes.value[index] = { ...nodes.value[index], ...updates }
-      syncToStorage()
-    }
-  }
-
-  const removeNode = (id: string) => {
-    nodes.value = nodes.value.filter(n => n.id !== id)
-    edges.value = edges.value.filter(e => e.source !== id && e.target !== id)
-    syncToStorage()
-  }
-
-  // Edge operations
-  const addEdge = (edge: Edge) => {
-    edges.value.push(edge)
-    syncToStorage()
-  }
-
-  const removeEdge = (id: string) => {
-    edges.value = edges.value.filter(e => e.id !== id)
-    syncToStorage()
-  }
-
-  // Sync with instance nodes
-  const syncWithInstance = (instanceNodes: Array<{ id: string, content: string, lang: string }>) => {
-    // Add new nodes
-    instanceNodes.forEach(instanceNode => {
-      if (!nodes.value.find(n => n.id === instanceNode.id)) {
-        addNode(instanceNode)
-      } else {
-        // Update existing node data
-        updateNode(instanceNode.id, {
-          data: {
-            label: instanceNode.id,
-            content: instanceNode.content,
-            lang: instanceNode.lang
-          }
-        })
-      }
-    })
-
-    // Remove deleted nodes
-    const instanceIds = instanceNodes.map(n => n.id)
-    nodes.value.forEach(node => {
-      if (!instanceIds.includes(node.id)) {
-        removeNode(node.id)
-      }
-    })
-  }
-
-  // Add method to create instance nodes
-  const addInstanceNode = (instanceNode: { id: string, content: string, lang: string }) => {
-    // This will be handled by the instance content in App.vue
-    // We just need to emit this somehow or handle it differently
-    return instanceNode
-  }
-
-  // Update node position and persist
-  const updateNodePosition = (id: string, position: { x: number, y: number }) => {
-    const index = nodes.value.findIndex(n => n.id === id)
-    if (index !== -1) {
-      nodes.value[index] = { 
-        ...nodes.value[index], 
-        position 
-      }
-      syncToStorage()
-    }
-  }
-
-  const getExecutionOrder = computed(() => {
-    // Simple topological sort based on edges
+  const executionOrder = computed(() => {
+    const canvasNodeIds = new Set(flowNodes.value.map(n => n.id))
     const visited = new Set<string>()
+    const visiting = new Set<string>()
     const order: string[] = []
     
-    const visit = (nodeId: string) => {
-      if (visited.has(nodeId)) return
-      visited.add(nodeId)
+    const visit = (nodeId: string): boolean => {
+      if (!canvasNodeIds.has(nodeId)) return true
+      if (visiting.has(nodeId)) return false
+      if (visited.has(nodeId)) return true
       
-      const dependents = edges.value
-        .filter(e => e.target === nodeId)
+      visiting.add(nodeId)
+      
+      const dependencies = flowEdges.value
+        .filter(e => e.target === nodeId && canvasNodeIds.has(e.source))
         .map(e => e.source)
       
-      dependents.forEach(visit)
+      for (const dep of dependencies) {
+        if (!visit(dep)) return false
+      }
+      
+      visiting.delete(nodeId)
+      visited.add(nodeId)
       order.push(nodeId)
+      return true
     }
     
-    nodes.value.forEach(node => visit(node.id))
+    const rootNodes = flowNodes.value.filter(node => 
+      !flowEdges.value.some(edge => edge.target === node.id)
+    )
+    
+    for (const node of rootNodes) {
+      if (!visit(node.id)) {
+        return []
+      }
+    }
+    
+    for (const node of flowNodes.value) {
+      if (!visited.has(node.id)) {
+        if (!visit(node.id)) {
+          return []
+        }
+      }
+    }
+    
     return order
   })
 
+  const createNode = (lang: 'js' | 'glsl' | 'wgsl' = 'js', position?: { x: number, y: number }) => {
+    const templates = {
+      js: "const a = 42\nconsole.log('Value:', a)",
+      glsl: "vec3 color = vec3(1.0, 0.0, 0.0);\ngl_FragColor = vec4(color, 1.0);",
+      wgsl: "@fragment\nfn main() -> @location(0) vec4<f32> {\n  return vec4<f32>(1.0, 0.0, 0.0, 1.0);\n}"
+    }
+    
+    const id = `node-${Date.now()}`
+    const newNode: NodeData = {
+      id,
+      content: templates[lang],
+      lang
+    }
+    
+    nodeData.value.push(newNode)
+    
+    if (position) {
+      const flowNode: Node = {
+        id,
+        type: 'custom',
+        position,
+        data: { label: id, content: newNode.content, lang }
+      }
+      flowNodes.value.push(flowNode)
+    }
+    
+    currentNodeId.value = id
+    return newNode
+  }
+
+  const deleteNode = (id: string) => {
+    nodeData.value = nodeData.value.filter(n => n.id !== id)
+    flowNodes.value = flowNodes.value.filter(n => n.id !== id)
+    flowEdges.value = flowEdges.value.filter(e => e.source !== id && e.target !== id)
+    
+    if (currentNodeId.value === id && nodeData.value.length > 0) {
+      currentNodeId.value = nodeData.value[0].id
+    }
+  }
+
+  const updateNodeContent = (id: string, content: string) => {
+    const node = nodeData.value.find(n => n.id === id)
+    if (node) {
+      node.content = content
+      const flowNode = flowNodes.value.find(n => n.id === id)
+      if (flowNode) {
+        flowNode.data = { ...flowNode.data, content }
+      }
+    }
+  }
+
+  const updateNodePosition = (id: string, position: { x: number, y: number }) => {
+    const flowNode = flowNodes.value.find(n => n.id === id)
+    if (flowNode) {
+      flowNode.position = position
+    }
+  }
+
+  const addEdge = (edge: Edge) => {
+    flowEdges.value.push(edge)
+  }
+
+  const selectNode = (id: string) => {
+    currentNodeId.value = id
+  }
+
   return {
-    nodes,
-    edges,
-    addNode,
-    updateNode,
-    removeNode,
-    addEdge,
-    removeEdge,
-    syncWithInstance,
-    addInstanceNode,
+    nodeData,
+    flowNodes,
+    flowEdges,
+    currentNodeId,
+    currentNode,
+    executionOrder,
+    createNode,
+    deleteNode,
+    updateNodeContent,
     updateNodePosition,
-    getExecutionOrder
+    addEdge,
+    selectNode
   }
 })

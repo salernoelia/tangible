@@ -2,293 +2,136 @@
   setup
   lang="ts"
 >
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import AppSidebar from "./components/AppSidebar.vue";
-import { useStorage } from '@vueuse/core';
-import Editor from './components/Editor.vue';
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import AppSidebar from "./components/AppSidebar.vue"
+import Editor from './components/Editor.vue'
+import Graph from "./components/Graph.vue"
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Toggle } from '@/components/ui/toggle'
-import { computed, ref, watch } from 'vue';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable'
-import SidebarMenuItem from "./components/ui/sidebar/SidebarMenuItem.vue";
-import Graph from "./components/Graph.vue";
-
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useGraphStore } from '@/stores/GraphStore'
+import { useExecution } from '@/composables/useExecution'
+import useHotkeys from '@/composables/useHotkeys'
+import { computed } from 'vue'
 
-
-// const store = useCounterStore()
 const graphStore = useGraphStore()
-
-type Instance = {
-  id: string,
-  nodes: {
-    id: string,
-    content: string,
-    lang: 'js' | 'wgsl' | 'glsl';
-  }[]
-}
-
-const instance_content = useStorage<Instance>("instance", {
-  id: "main",
-  nodes: [
-    {
-      id: "node-1",
-      content: "alert('hello world')",
-      lang: 'js'
-    }
-  ]
-})
-
-const current_node_id = useStorage("current-editor-id", "node-1")
+const { output, executeAll, executeCurrent } = useExecution()
 
 const currentEditorContent = computed({
-  get() {
-    const editor = instance_content.value.nodes.find(e => e.id === current_node_id.value);
-    return editor ? editor.content : '';
-  },
-  set(val: string) {
-    const editor = instance_content.value.nodes.find(e => e.id === current_node_id.value);
-    if (editor) editor.content = val;
-  }
-});
-
-const output = ref<string[]>([]);
-
-function spawnNode() {
-  const newId = `node-${Date.now()}`;
-  instance_content.value.nodes.push({
-    id: newId,
-    content: "// New node",
-    lang: 'js'
-  });
-  current_node_id.value = instance_content.value.nodes[instance_content.value.nodes.length - 1].id
-}
-
-function deleteNode() {
-  const idx = instance_content.value.nodes.findIndex(e => e.id === current_node_id.value);
-  if (idx !== -1) {
-    instance_content.value.nodes.splice(idx, 1);
-    if (instance_content.value.nodes.length > 0) {
-      current_node_id.value = instance_content.value.nodes[0].id;
-    } else {
-      current_node_id.value = "";
-    }
-  }
-  if (instance_content.value.nodes[0].id) {
-    current_node_id.value = instance_content.value.nodes[0].id
-
-  } else {
-    spawnNode()
-  }
-}
-
-// Sync graph store with instance content
-watch(() => instance_content.value.nodes, (newNodes) => {
-  graphStore.syncWithInstance(newNodes)
-}, { deep: true, immediate: true })
-
-// Watch for new nodes created by drag and drop
-watch(() => graphStore.nodes.length, (newLength, oldLength) => {
-  if (newLength > oldLength) {
-    // Find the new node
-    const existingIds = instance_content.value.nodes.map(n => n.id)
-    const newNode = graphStore.nodes.find(n => !existingIds.includes(n.id))
-
-    if (newNode && newNode.data) {
-      // Add to instance content
-      instance_content.value.nodes.push({
-        id: newNode.id,
-        content: newNode.data.content || '// New node',
-        lang: newNode.data.lang || 'js'
-      })
-
-      // Set as current editor
-      current_node_id.value = newNode.id
+  get: () => graphStore.currentNode?.content || '',
+  set: (value: string) => {
+    if (graphStore.currentNodeId) {
+      graphStore.updateNodeContent(graphStore.currentNodeId, value)
     }
   }
 })
 
-function runAllNodes() {
-  try {
-    // Use execution order from graph store
-    const executionOrder = graphStore.getExecutionOrder
-    const orderedNodes = executionOrder
-      .map(id => instance_content.value.nodes.find(n => n.id === id))
-      .filter(Boolean)
+const editorLanguage = computed(() => {
+  const lang = graphStore.currentNode?.lang
+  if (lang === 'glsl' || lang === 'wgsl') return 'glsl'
+  return 'javascript'
+})
 
-    // Clear previous output
-
-    for (const editor of orderedNodes) {
-      let nodeOutput = '';
-      const originalConsoleLog = console.log;
-      console.log = (...args: any[]) => {
-        nodeOutput += args.map(String).join(' ') + '\n';
-      };
-
-      let result;
-      try {
-        result = eval(editor.content);
-      } catch (e) {
-        nodeOutput += "Error: " + (e as Error).message + '\n';
-      }
-
-      // Restore original console.log
-      console.log = originalConsoleLog;
-
-      if (nodeOutput.trim()) {
-        const lines = nodeOutput.trim().split('\n');
-        output.value.push(...lines);
-      }
-      if (result !== undefined) {
-        output.value.push(`Return value: ${String(result)}`);
-      }
-      console.log(output.value)
+useHotkeys({
+  'ctrl+n': () => graphStore.createNode(),
+  'cmd+n': () => graphStore.createNode(),
+  'ctrl+enter': executeAll,
+  'cmd+enter': executeAll,
+  'ctrl+shift+enter': executeCurrent,
+  'cmd+shift+enter': executeCurrent,
+  'delete': () => {
+    if (graphStore.currentNodeId && graphStore.nodeData.length > 1) {
+      graphStore.deleteNode(graphStore.currentNodeId)
     }
-  } catch (e) {
-    output.value.push("Error: " + (e as Error).message)
   }
-}
-
-
-function runCurrentNode() {
-
-}
+})
 </script>
 
 <template>
-  <div>
-    <ResizablePanelGroup
-      id="main-group"
-      direction="horizontal"
-      class="h-screen rounded-lg border"
+  <ResizablePanelGroup
+    id="main"
+    direction="horizontal"
+    class="h-screen"
+  >
+    <ResizablePanel
+      id="sidebar-graph"
+      :default-size="60"
+      class="flex flex-col"
     >
-      <ResizablePanel
-        id="main-panel-1"
-        :default-size="50"
-        class="h-screen flex flex-col"
-      >
+      <SidebarProvider>
+        <AppSidebar />
+        <main class="flex-1">
+          <SidebarTrigger class="m-2" />
+          <Graph class="h-full w-full" />
+        </main>
+      </SidebarProvider>
+    </ResizablePanel>
 
-        <SidebarProvider>
-          <AppSidebar>
-            <SidebarMenuItem
-              v-for="e in instance_content.nodes"
-              :key="e.id"
-            >
-              <a
-                href="#"
-                @click.prevent="current_node_id = e.id"
-                class="flex items-center gap-2 py-2 px-3 hover:bg-gray-100 rounded"
-              >
-                <component is="span" />
-                <span>{{ e.id }}</span>
-              </a>
-            </SidebarMenuItem>
-          </AppSidebar>
-          <main class="w-full">
-            <SidebarTrigger class="mt-2 ml-2" />
+    <ResizableHandle />
 
-            <Graph class="h-full w-full" />
-
-
-          </main>
-        </SidebarProvider>
-
-      </ResizablePanel>
-      <ResizableHandle
-        id="main-handle-1"
-        with-handle
-      />
-      <ResizablePanel
-        id="main-panel-2"
-        :default-size="35"
-        class="h-screen"
-      >
-        <ResizablePanelGroup
-          id="nested-group"
-          direction="vertical"
-          class="h-screen"
+    <ResizablePanel
+      id="editor-console"
+      :default-size="40"
+    >
+      <ResizablePanelGroup direction="vertical">
+        <ResizablePanel
+          id="editor"
+          :default-size="70"
         >
-          <ResizablePanel
-            id="nested-panel-1"
-            :default-size="60"
-            class="h-screen"
-          >
-            <div class="controls flex flex-row justify-end">
-              <Toggle
+          <div class="h-full flex flex-col">
+            <div class="controls">
+              <Button
                 variant="outline"
-                aria-label="Toggle italic"
+                size="sm"
+                @click="executeAll"
               >
-                Canvas
-              </Toggle>
+                Run All (Ctrl+Enter)
+              </Button>
               <Button
                 variant="outline"
-                @click="spawnNode"
-              >New Node</Button>
-              <Button
-                variant="outline"
-                @click="deleteNode"
-              >Delete Node</Button>
-              <Button
-                variant="outline"
-                @click="runAllNodes"
-              >Run All</Button>
-              <Button
-                variant="outline"
-                @click="runCurrentNode"
-              >Run Current</Button>
+                size="sm"
+                @click="executeCurrent"
+              >
+                Run Current (Ctrl+Shift+Enter)
+              </Button>
             </div>
-
             <Editor
-              :editor_id="current_node_id"
               v-model="currentEditorContent"
+              :language="editorLanguage"
+              class="flex-1"
             />
+          </div>
+        </ResizablePanel>
 
-          </ResizablePanel>
-          <ResizableHandle
-            id="nested-handle-1"
-            with-handle
-          />
-          <ResizablePanel
-            id="nested-panel-2"
-            :default-size="20"
-            class="h-screen p-2"
-          >
-            <h3 class="pb-1">Console</h3>
-            <Separator />
+        <ResizableHandle />
+
+        <ResizablePanel
+          id="console"
+          :default-size="30"
+          class="p-3"
+        >
+          <h3 class="text-sm font-semibold mb-2">Console</h3>
+          <Separator class="mb-2" />
+          <div class="text-sm font-mono space-y-1 overflow-y-auto h-full">
             <div
-              class="overflow-y-auto h-full"
-              style="max-height: 100%;"
+              v-for="line in output"
+              :key="line"
+              class="text-gray-700"
             >
-              <div>
-                <p
-                  v-for="e in output"
-                  :key="e"
-                  class="whitespace-pre-wrap"
-                >
-                  > {{ e }}
-                </p>
-              </div>
+              > {{ line }}
             </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </ResizablePanel>
-    </ResizablePanelGroup>
-  </div>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </ResizablePanel>
+  </ResizablePanelGroup>
 </template>
 
 <style scoped>
-.nodes>* {
-  margin-bottom: 10px;
-}
-
 .controls {
-  padding: 0.5rem;
-  gap: 10px;
   display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
 }
 </style>

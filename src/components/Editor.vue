@@ -2,71 +2,67 @@
   setup
   lang="ts"
 >
-import { onMounted, ref, watch } from 'vue';
-import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-// import '@bithero/monaco-glsl';
-
+import { onMounted, ref, watch } from 'vue'
+import * as monaco from 'monaco-editor'
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
 const props = defineProps<{
-  editor_id: string;
-  modelValue: string;
-}>();
+  modelValue: string
+  language?: string
+}>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string];
-}>();
+  'update:modelValue': [value: string]
+}>()
 
-const container = ref<HTMLDivElement>();
-let editor: monaco.editor.IStandaloneCodeEditor | null = null;
+const container = ref<HTMLDivElement>()
+let editor: monaco.editor.IStandaloneCodeEditor | null = null
 
 self.MonacoEnvironment = {
   getWorker: function (_, label) {
     switch (label) {
       case 'typescript':
       case 'javascript':
-        return new tsWorker();
+        return new tsWorker()
       default:
-        return new editorWorker();
+        return new editorWorker()
     }
   }
-};
+}
 
 onMounted(() => {
-  if (!container.value) return;
-
-  // Add intellisense for all nodes
-  const allCode = props.modelValue;
-  monaco.languages.typescript.javascriptDefaults.addExtraLib(
-    allCode,
-    `file:///${props.editor_id}.js`
-  );
+  if (!container.value) return
 
   editor = monaco.editor.create(container.value, {
     value: props.modelValue,
-    language: 'javascript',
+    language: props.language || 'javascript',
     automaticLayout: true,
-    minimap: { enabled: false }
-  });
+    minimap: { enabled: false },
+    fontSize: 14,
+    lineNumbers: 'on',
+    roundedSelection: false,
+    scrollBeyondLastLine: false,
+    theme: 'vs'
+  })
 
   editor.onDidChangeModelContent(() => {
-    const value = editor!.getValue();
-    emit('update:modelValue', value);
-
-    // Update intellisense
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(
-      value,
-      `file:///${props.editor_id}.js`
-    );
-  });
-});
+    const value = editor!.getValue()
+    emit('update:modelValue', value)
+  })
+})
 
 watch(() => props.modelValue, (newValue) => {
   if (editor && editor.getValue() !== newValue) {
-    editor.setValue(newValue);
+    editor.setValue(newValue)
   }
-});
+})
+
+watch(() => props.language, (newLang) => {
+  if (editor && newLang) {
+    monaco.editor.setModelLanguage(editor.getModel()!, newLang)
+  }
+})
 </script>
 
 <template>
@@ -80,6 +76,8 @@ watch(() => props.modelValue, (newValue) => {
 .editor-container {
   width: 100%;
   height: 100%;
-  border: 1px solid #ccc;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 </style>
