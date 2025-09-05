@@ -53,25 +53,32 @@ const templates = [
             </SidebarGroup>
 
             <SidebarGroup>
-                <SidebarGroupLabel>Nodes</SidebarGroupLabel>
                 <SidebarGroupContent>
                     <SidebarMenu>
-                        <SidebarMenuItem
-                            v-for="node in graphStore.nodeData"
-                            :key="node.id"
-                        >
-                            <button
-                                class="node-item"
-                                :class="{ active: graphStore.currentNodeId === node.id }"
-                                @click="graphStore.selectNode(node.id)"
+                        <template v-for="lang in ['js', 'glsl', 'wgsl']">
+                            <SidebarMenuItem
+                                :key="lang + '-group'"
+                                v-if="graphStore.canvasNodes.some(node => node.lang === lang)"
                             >
-                                <div
-                                    class="node-indicator"
-                                    :class="`lang-${node.lang}`"
-                                ></div>
-                                {{ node.id }}
-                            </button>
-                        </SidebarMenuItem>
+                                <SidebarGroupLabel>{{ lang.toUpperCase() }}</SidebarGroupLabel>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem
+                                v-for="node in graphStore.canvasNodes.filter(n => n.lang === lang)"
+                                :key="node.id"
+                            >
+                                <button
+                                    class="node-item"
+                                    :class="{ active: graphStore.currentNodeId === node.id }"
+                                    @click="graphStore.selectNode(node.id)"
+                                >
+                                    <div
+                                        class="node-indicator"
+                                        :class="`lang-${node.lang}`"
+                                    ></div>
+                                    {{ node.id }}
+                                </button>
+                            </SidebarMenuItem>
+                        </template>
                     </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>

@@ -24,6 +24,11 @@ export const useGraphStore = defineStore('graph', () => {
     nodeData.value.find(n => n.id === currentNodeId.value)
   )
 
+  const canvasNodes = computed(() => {
+    const canvasNodeIds = new Set(flowNodes.value.map(n => n.id))
+    return nodeData.value.filter(n => canvasNodeIds.has(n.id))
+  })
+
   const executionOrder = computed(() => {
     const canvasNodeIds = new Set(flowNodes.value.map(n => n.id))
     const visited = new Set<string>()
@@ -144,6 +149,7 @@ export const useGraphStore = defineStore('graph', () => {
     flowEdges,
     currentNodeId,
     currentNode,
+    canvasNodes,
     executionOrder,
     createNode,
     deleteNode,
