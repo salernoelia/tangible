@@ -64,12 +64,11 @@ const langColors = {
 
 .custom-node:hover {
     border-color: #999;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .custom-node.active {
-    border-color: #0066cc;
-    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+    border-color: #a0a0a0;
+
 }
 
 .node-header {
@@ -109,10 +108,10 @@ const langColors = {
 }
 
 .node-handle.target {
-    background: #d0f4dd;
+    background: #ffffff;
 }
 
 .node-handle.source {
-    background: #e8d5d5;
+    background: #3c3b3d;
 }
 </style>

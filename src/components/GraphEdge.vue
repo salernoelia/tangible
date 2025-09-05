@@ -43,5 +43,7 @@ const path = computed(() => getBezierPath(props))
 .edge-connection {
     color: #666;
     font-weight: bold;
+
+
 }
 </style>
