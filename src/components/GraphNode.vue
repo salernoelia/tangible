@@ -2,17 +2,25 @@
     setup
     lang="ts"
 >
-import { computed } from 'vue'
+
+
 import { Position, Handle } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
+import { useStorage } from '@vueuse/core';
+
 
 const props = defineProps<NodeProps>()
+
+const current_node_id = useStorage("current-editor-id", "node-1")
 
 
 </script>
 
 <template>
-    <div class="custom-node">
+    <div
+        class="custom-node"
+        @click="current_node_id = data.label"
+    >
         <div class="node-header">
             <span class="node-title">{{ data.label }}</span>
             <span class="node-lang">{{ data.lang }}</span>
@@ -20,19 +28,21 @@ const props = defineProps<NodeProps>()
 
         <div class="node-content">
             <code>{{ data.content?.slice(0, 50) }}{{ data.content?.length > 50 ? '...' : '' }}</code>
+
         </div>
+
 
 
 
         <Handle
             type="target"
-            :position="Position.Left"
+            :position="Position.Right"
             class="node-handle target"
         />
 
         <Handle
             type="source"
-            :position="Position.Right"
+            :position="Position.Left"
             class="node-handle source"
         />
     </div>
@@ -97,14 +107,14 @@ const props = defineProps<NodeProps>()
 .node-handle {
     width: 12px;
     height: 12px;
-    border: 2px solid #666;
+    border: 1px solid #666;
 }
 
 .node-handle.target {
-    background: #4ade80;
+    background: #d0f4dd;
 }
 
 .node-handle.source {
-    background: #f87171;
+    background: #e8d5d5;
 }
 </style>

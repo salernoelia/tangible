@@ -43,20 +43,20 @@ const instance_content = useStorage<Instance>("instance", {
   ]
 })
 
-const current_editor_id = useStorage("current-editor-id", "node-1")
+const current_node_id = useStorage("current-editor-id", "node-1")
 
 const currentEditorContent = computed({
   get() {
-    const editor = instance_content.value.nodes.find(e => e.id === current_editor_id.value);
+    const editor = instance_content.value.nodes.find(e => e.id === current_node_id.value);
     return editor ? editor.content : '';
   },
   set(val: string) {
-    const editor = instance_content.value.nodes.find(e => e.id === current_editor_id.value);
+    const editor = instance_content.value.nodes.find(e => e.id === current_node_id.value);
     if (editor) editor.content = val;
   }
 });
 
-const output = ref<string>("");
+const output = ref<string[]>([]);
 
 function spawnNode() {
   const newId = `node-${Date.now()}`;
@@ -65,21 +65,21 @@ function spawnNode() {
     content: "// New node",
     lang: 'js'
   });
-  current_editor_id.value = instance_content.value.nodes[instance_content.value.nodes.length - 1].id
+  current_node_id.value = instance_content.value.nodes[instance_content.value.nodes.length - 1].id
 }
 
 function deleteNode() {
-  const idx = instance_content.value.nodes.findIndex(e => e.id === current_editor_id.value);
+  const idx = instance_content.value.nodes.findIndex(e => e.id === current_node_id.value);
   if (idx !== -1) {
     instance_content.value.nodes.splice(idx, 1);
     if (instance_content.value.nodes.length > 0) {
-      current_editor_id.value = instance_content.value.nodes[0].id;
+      current_node_id.value = instance_content.value.nodes[0].id;
     } else {
-      current_editor_id.value = "";
+      current_node_id.value = "";
     }
   }
   if (instance_content.value.nodes[0].id) {
-    current_editor_id.value = instance_content.value.nodes[0].id
+    current_node_id.value = instance_content.value.nodes[0].id
 
   } else {
     spawnNode()
@@ -91,6 +91,27 @@ watch(() => instance_content.value.nodes, (newNodes) => {
   graphStore.syncWithInstance(newNodes)
 }, { deep: true, immediate: true })
 
+// Watch for new nodes created by drag and drop
+watch(() => graphStore.nodes.length, (newLength, oldLength) => {
+  if (newLength > oldLength) {
+    // Find the new node
+    const existingIds = instance_content.value.nodes.map(n => n.id)
+    const newNode = graphStore.nodes.find(n => !existingIds.includes(n.id))
+
+    if (newNode && newNode.data) {
+      // Add to instance content
+      instance_content.value.nodes.push({
+        id: newNode.id,
+        content: newNode.data.content || '// New node',
+        lang: newNode.data.lang || 'js'
+      })
+
+      // Set as current editor
+      current_node_id.value = newNode.id
+    }
+  }
+})
+
 function runAllNodes() {
   try {
     // Use execution order from graph store
@@ -99,27 +120,39 @@ function runAllNodes() {
       .map(id => instance_content.value.nodes.find(n => n.id === id))
       .filter(Boolean)
 
-    const code = orderedNodes
-      .map(editor => editor.content)
-      .join('\n');
+    // Clear previous output
 
-    // Capture console output
-    let consoleOutput = '';
-    const originalConsoleLog = console.log;
-    console.log = (...args: any[]) => {
-      consoleOutput += args.map(String).join(' ') + '\n';
-    };
+    for (const editor of orderedNodes) {
+      let nodeOutput = '';
+      const originalConsoleLog = console.log;
+      console.log = (...args: any[]) => {
+        nodeOutput += args.map(String).join(' ') + '\n';
+      };
 
-    const result = eval(code);
+      let result;
+      try {
+        result = eval(editor.content);
+      } catch (e) {
+        nodeOutput += "Error: " + (e as Error).message + '\n';
+      }
 
-    // Restore original console.log
-    console.log = originalConsoleLog;
+      // Restore original console.log
+      console.log = originalConsoleLog;
 
-    output.value = consoleOutput + (result !== undefined ? `Return value: ${String(result)}` : '');
+      if (nodeOutput.trim()) {
+        const lines = nodeOutput.trim().split('\n');
+        output.value.push(...lines);
+      }
+      if (result !== undefined) {
+        output.value.push(`Return value: ${String(result)}`);
+      }
+      console.log(output.value)
+    }
   } catch (e) {
-    output.value = "Error: " + (e as Error).message;
+    output.value.push("Error: " + (e as Error).message)
   }
 }
+
 
 function runCurrentNode() {
 
@@ -147,7 +180,7 @@ function runCurrentNode() {
             >
               <a
                 href="#"
-                @click.prevent="current_editor_id = e.id"
+                @click.prevent="current_node_id = e.id"
                 class="flex items-center gap-2 py-2 px-3 hover:bg-gray-100 rounded"
               >
                 <component is="span" />
@@ -204,7 +237,7 @@ function runCurrentNode() {
             </div>
 
             <Editor
-              :editor_id="current_editor_id"
+              :editor_id="current_node_id"
               v-model="currentEditorContent"
             />
 
@@ -220,7 +253,20 @@ function runCurrentNode() {
           >
             <h3 class="pb-1">Console</h3>
             <Separator />
-            <pre>{{ output }}</pre>
+            <div
+              class="overflow-y-auto h-full"
+              style="max-height: 100%;"
+            >
+              <div>
+                <p
+                  v-for="e in output"
+                  :key="e"
+                  class="whitespace-pre-wrap"
+                >
+                  > {{ e }}
+                </p>
+              </div>
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>

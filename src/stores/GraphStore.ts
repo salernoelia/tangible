@@ -4,20 +4,17 @@ import type { Node, Edge } from '@vue-flow/core'
 import { ref, computed } from 'vue'
 
 export const useGraphStore = defineStore('graph', () => {
-  // Persistent storage for nodes and edges
   const storedNodes = useStorage<Node[]>('graph-nodes', [])
   const storedEdges = useStorage<Edge[]>('graph-edges', [])
   
   const nodes = ref<Node[]>(storedNodes.value)
   const edges = ref<Edge[]>(storedEdges.value)
 
-  // Sync with storage
   const syncToStorage = () => {
     storedNodes.value = nodes.value
     storedEdges.value = edges.value
   }
 
-  // Node operations
   const addNode = (instanceNode: { id: string, content: string, lang: string }) => {
     const newNode: Node = {
       id: instanceNode.id,
@@ -89,6 +86,25 @@ export const useGraphStore = defineStore('graph', () => {
     })
   }
 
+  // Add method to create instance nodes
+  const addInstanceNode = (instanceNode: { id: string, content: string, lang: string }) => {
+    // This will be handled by the instance content in App.vue
+    // We just need to emit this somehow or handle it differently
+    return instanceNode
+  }
+
+  // Update node position and persist
+  const updateNodePosition = (id: string, position: { x: number, y: number }) => {
+    const index = nodes.value.findIndex(n => n.id === id)
+    if (index !== -1) {
+      nodes.value[index] = { 
+        ...nodes.value[index], 
+        position 
+      }
+      syncToStorage()
+    }
+  }
+
   const getExecutionOrder = computed(() => {
     // Simple topological sort based on edges
     const visited = new Set<string>()
@@ -119,6 +135,8 @@ export const useGraphStore = defineStore('graph', () => {
     addEdge,
     removeEdge,
     syncWithInstance,
+    addInstanceNode,
+    updateNodePosition,
     getExecutionOrder
   }
 })

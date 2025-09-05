@@ -62,7 +62,6 @@ onMounted(() => {
   });
 });
 
-// Watch for changes in modelValue to update editor content when switching nodes
 watch(() => props.modelValue, (newValue) => {
   if (editor && editor.getValue() !== newValue) {
     editor.setValue(newValue);
