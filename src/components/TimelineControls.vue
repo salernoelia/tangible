@@ -122,9 +122,7 @@ const stop = () => {
                 class="scrubber"
                 @input="handleSeek"
             >
-            <div class="time-display">
-                {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-            </div>
+
         </div>
 
         <Separator
@@ -156,7 +154,6 @@ const stop = () => {
     align-items: center;
     gap: 12px;
     padding: 8px 12px;
-    background: #f8f9fa;
     border-top: 1px solid #e0e0e0;
     border-bottom: 1px solid #e0e0e0;
 }

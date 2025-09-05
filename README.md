@@ -1,5 +1,6 @@
-# Vue 3 + TypeScript + Vite
+# Tangible
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+![Demo](./public/demo.png)
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+
+Tangible is a work in progress and stil very experimental web IDE for building creative coding applications with full access to the browser environment. It features a code editor, node system, and canvas preview for working with p5.js and shaders. Easily create and deploy interactive or general creative coding projects to the web.

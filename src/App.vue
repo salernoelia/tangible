@@ -106,7 +106,7 @@ useHotkeys({
         >
           <div class="h-full flex flex-col">
             <TimelineControls />
-            <div class="controls">
+            <!-- <div class="controls">
 
               <Button
                 variant="outline"
@@ -129,7 +129,7 @@ useHotkeys({
                   ></path>
                 </svg>
               </Button>
-            </div>
+            </div> -->
             <Editor
               v-model="currentEditorContent"
               :language="editorLanguage"
